@@ -1,0 +1,59 @@
+{
+  "name": "Chasr — Dating for the Trans Community",
+  "short_name": "Chasr",
+  "description": "Find your people. Chasr is a dating and social app built for the trans community.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0d12",
+  "theme_color": "#0d0d12",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["social", "lifestyle", "dating"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Browse profiles on the map"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Browse",
+      "url": "/",
+      "description": "Browse nearby profiles"
+    },
+    {
+      "name": "Chat",
+      "url": "/chat",
+      "description": "View your conversations"
+    },
+    {
+      "name": "Favorites",
+      "url": "/favorites",
+      "description": "See your matches and likes"
+    }
+  ]
+}
