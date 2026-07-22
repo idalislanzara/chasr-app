@@ -77,13 +77,8 @@ export default function Login() {
     }
 
     if (mode === 'register') {
-      if (password.length < 8) {
-        setError('Password must be at least 8 characters');
-        return;
-      }
-      const s = checkPasswordStrength(password);
-      if (s.score < 2) {
-        setError('Password is too weak. Add uppercase, numbers, or special characters.');
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters');
         return;
       }
       const result = await register(email.trim(), password);
@@ -167,7 +162,7 @@ export default function Login() {
             <Lock size={18} className="input-icon" />
             <input
               type={showPw ? 'text' : 'password'}
-              placeholder={mode === 'register' ? 'Create a strong password' : 'Password'}
+              placeholder={mode === 'register' ? 'Create a password (6+ chars)' : 'Password'}
               value={password}
               onChange={(e) => handlePasswordChange(e.target.value)}
               autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
@@ -187,7 +182,7 @@ export default function Login() {
           {mode === 'register' && (
             <div className="password-requirements">
               <ShieldCheck size={12} />
-              <span>8+ characters, mix of letters, numbers & symbols</span>
+              <span>At least 6 characters</span>
             </div>
           )}
 
