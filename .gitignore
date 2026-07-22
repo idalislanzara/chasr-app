@@ -1,5 +1,4 @@
 node_modules/
-dist/
 server/chasr.db
 *.db
 .env
