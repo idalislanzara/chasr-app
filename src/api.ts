@@ -1,20 +1,29 @@
 import * as storage from './storage';
 
+// When no API_URL is set, go straight to localStorage mode
 const API_URL = import.meta.env.VITE_API_URL || '';
+const USE_LOCAL = !API_URL;
 
 let backendAvailable: boolean | null = null;
 
 async function checkBackend(): Promise<boolean> {
+  if (USE_LOCAL) return false;
   if (backendAvailable !== null) return backendAvailable;
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 2000);
-    await fetch(`${API_URL}/api/online`, {
+    const res = await fetch(`${API_URL}/api/online`, {
       method: 'GET',
       signal: controller.signal,
       headers: { 'Content-Type': 'application/json' },
     });
     clearTimeout(timeout);
+    if (!res.ok) { backendAvailable = false; return false; }
+    const data = await res.json();
+    if (data.error === 'No token provided') {
+      backendAvailable = true;
+      return true;
+    }
     backendAvailable = true;
     return true;
   } catch {
@@ -30,7 +39,6 @@ async function remoteRequest(path: string, options: RequestInit = {}) {
     ...(options.headers as Record<string, string> || {}),
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Request failed');
@@ -39,30 +47,22 @@ async function remoteRequest(path: string, options: RequestInit = {}) {
 
 export const api = {
   register: async (email: string, password: string) => {
-    if (await checkBackend()) {
-      return remoteRequest('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
-    }
+    if (await checkBackend()) return remoteRequest('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
     return storage.localRegister(email, password);
   },
 
   login: async (email: string, password: string) => {
-    if (await checkBackend()) {
-      return remoteRequest('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-    }
+    if (await checkBackend()) return remoteRequest('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
     return storage.localLogin(email, password);
   },
 
   getMe: async () => {
-    if (await checkBackend()) {
-      return remoteRequest('/api/auth/me');
-    }
+    if (await checkBackend()) return remoteRequest('/api/auth/me');
     return storage.localGetMe();
   },
 
   updateProfile: async (data: Record<string, unknown>) => {
-    if (await checkBackend()) {
-      return remoteRequest('/api/profile', { method: 'PUT', body: JSON.stringify(data) });
-    }
+    if (await checkBackend()) return remoteRequest('/api/profile', { method: 'PUT', body: JSON.stringify(data) });
     return storage.localUpdateProfile(data);
   },
 
@@ -75,72 +75,52 @@ export const api = {
   },
 
   getNearby: async (lat: number, lng: number, radius?: number) => {
-    if (await checkBackend()) {
-      return remoteRequest(`/api/nearby?lat=${lat}&lng=${lng}${radius ? '&radius=' + radius : ''}`);
-    }
+    if (await checkBackend()) return remoteRequest(`/api/nearby?lat=${lat}&lng=${lng}${radius ? '&radius=' + radius : ''}`);
     return storage.localGetNearby(lat, lng, radius);
   },
 
   favorite: async (targetId: string) => {
-    if (await checkBackend()) {
-      return remoteRequest(`/api/favorites/${targetId}`, { method: 'POST' });
-    }
+    if (await checkBackend()) return remoteRequest(`/api/favorites/${targetId}`, { method: 'POST' });
     return storage.localFavorite(targetId);
   },
 
   unfavorite: async (targetId: string) => {
-    if (await checkBackend()) {
-      return remoteRequest(`/api/favorites/${targetId}`, { method: 'DELETE' });
-    }
+    if (await checkBackend()) return remoteRequest(`/api/favorites/${targetId}`, { method: 'DELETE' });
     return storage.localUnfavorite(targetId);
   },
 
   getFavorites: async () => {
-    if (await checkBackend()) {
-      return remoteRequest('/api/favorites');
-    }
+    if (await checkBackend()) return remoteRequest('/api/favorites');
     return storage.localGetFavorites();
   },
 
   block: async (targetId: string) => {
-    if (await checkBackend()) {
-      return remoteRequest(`/api/blocks/${targetId}`, { method: 'POST' });
-    }
+    if (await checkBackend()) return remoteRequest(`/api/blocks/${targetId}`, { method: 'POST' });
     return storage.localBlock(targetId);
   },
 
   getChats: async () => {
-    if (await checkBackend()) {
-      return remoteRequest('/api/chats');
-    }
+    if (await checkBackend()) return remoteRequest('/api/chats');
     return storage.localGetChats();
   },
 
   getMessages: async (chatId: string) => {
-    if (await checkBackend()) {
-      return remoteRequest(`/api/chats/${chatId}/messages`);
-    }
+    if (await checkBackend()) return remoteRequest(`/api/chats/${chatId}/messages`);
     return storage.localGetMessages(chatId);
   },
 
   sendMessage: async (chatId: string, text: string) => {
-    if (await checkBackend()) {
-      return remoteRequest(`/api/chats/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ text }) });
-    }
+    if (await checkBackend()) return remoteRequest(`/api/chats/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ text }) });
     return storage.localSendMessage(chatId, text);
   },
 
   getOnline: async () => {
-    if (await checkBackend()) {
-      return remoteRequest('/api/online');
-    }
+    if (await checkBackend()) return remoteRequest('/api/online');
     return storage.localGetOnline();
   },
 
   seed: async () => {
-    if (await checkBackend()) {
-      return remoteRequest('/api/seed', { method: 'POST' });
-    }
+    if (await checkBackend()) return remoteRequest('/api/seed', { method: 'POST' });
     return storage.localSeed();
   },
 
@@ -160,22 +140,14 @@ export const api = {
   },
 };
 
-// Socket.io client (only works with backend)
 import { io } from 'socket.io-client';
-
 let socket: ReturnType<typeof io> | null = null;
 
 export function connectSocket(token: string) {
-  if (backendAvailable === false) return null;
+  if (USE_LOCAL || backendAvailable === false) return null;
   if (socket?.connected) return socket;
-  try {
-    socket = io(API_URL, { auth: { token } });
-    return socket;
-  } catch {
-    return null;
-  }
+  try { socket = io(API_URL, { auth: { token } }); return socket; }
+  catch { return null; }
 }
 
-export function getSocket() {
-  return socket;
-}
+export function getSocket() { return socket; }
