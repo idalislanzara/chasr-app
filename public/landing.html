@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chasr — Dating for the Trans Community</title>
+  <meta name="description" content="Find your people. Chasr is a dating and social app built for the trans community.">
+  <meta property="og:title" content="Chasr — Dating for the Trans Community">
+  <meta property="og:description" content="Find your people. A dating app that understands you.">
+  <meta property="og:type" content="website">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0d12;
+      --card: #16161f;
+      --accent: #d946ef;
+      --pink: #f472b6;
+      --text: #f0eff5;
+      --muted: #a09eb8;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .hero {
+      text-align: center;
+      padding: 80px 24px 60px;
+      background: linear-gradient(180deg, rgba(217,70,239,0.15) 0%, transparent 100%);
+    }
+    .logo {
+      font-size: 56px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #d946ef, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+    }
+    .tagline {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .subtitle {
+      font-size: 16px;
+      color: var(--muted);
+      max-width: 500px;
+      margin: 0 auto 40px;
+      line-height: 1.6;
+    }
+    .cta-btn {
+      display: inline-block;
+      padding: 16px 40px;
+      background: linear-gradient(135deg, #d946ef, #f472b6);
+      color: white;
+      font-size: 18px;
+      font-weight: 700;
+      border-radius: 14px;
+      text-decoration: none;
+      transition: transform 0.2s;
+    }
+    .cta-btn:hover { transform: scale(1.05); }
+    .features {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    .feature {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 28px 24px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .feature-icon { font-size: 36px; margin-bottom: 12px; }
+    .feature h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .feature p { font-size: 14px; color: var(--muted); line-height: 1.5; }
+    .social-proof {
+      text-align: center;
+      padding: 40px 24px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    footer {
+      text-align: center;
+      padding: 40px 24px;
+      color: var(--muted);
+      font-size: 13px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    @media (min-width: 600px) {
+      .features { grid-template-columns: 1fr 1fr; }
+      .hero { padding: 120px 24px 80px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="logo">chasr</div>
+    <h1 class="tagline">Find your people.</h1>
+    <p class="subtitle">A dating and social app built for the trans community. Browse profiles, chat, and connect with people who get you.</p>
+    <a href="/chasr-app/" class="cta-btn">Open Chasr</a>
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <div class="feature-icon">&#128269;</div>
+      <h3>Browse Nearby</h3>
+      <p>See who's around you on the grid or explore the map. Find people in your area or anywhere in the world.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">&#128172;</div>
+      <h3>Real Conversations</h3>
+      <p>Chat with matches in real-time. Send messages, share photos, and build real connections.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">&#128150;</div>
+      <h3>Made for Us</h3>
+      <p>Not an afterthought. Chasr is designed from the ground up for the trans community with identities, pronouns, and more.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">&#128737;</div>
+      <h3>Safe & Private</h3>
+      <p>Your data stays yours. Discreet mode, block & report, and full control over who sees you.</p>
+    </div>
+  </div>
+
+  <div class="social-proof">
+    <p>Built with love for the trans community</p>
+  </div>
+
+  <footer>
+    <p>&copy; 2026 Chasr. Made with &#128150;</p>
+  </footer>
+</body>
+</html>
