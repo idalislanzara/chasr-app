@@ -1,29 +1,24 @@
 import * as storage from './storage';
 
-// When no API_URL is set, go straight to localStorage mode
+// Empty string = same origin (works on Render, fails on GitHub Pages → falls back to localStorage)
 const API_URL = import.meta.env.VITE_API_URL || '';
-const USE_LOCAL = !API_URL;
 
 let backendAvailable: boolean | null = null;
 
 async function checkBackend(): Promise<boolean> {
-  if (USE_LOCAL) return false;
   if (backendAvailable !== null) return backendAvailable;
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
+    const timeout = setTimeout(() => controller.abort(), 3000);
     const res = await fetch(`${API_URL}/api/online`, {
       method: 'GET',
       signal: controller.signal,
       headers: { 'Content-Type': 'application/json' },
     });
     clearTimeout(timeout);
-    if (!res.ok) { backendAvailable = false; return false; }
-    const data = await res.json();
-    if (data.error === 'No token provided') {
-      backendAvailable = true;
-      return true;
-    }
+    // If we get a JSON response (even an auth error), the backend is real
+    const text = await res.text();
+    JSON.parse(text);
     backendAvailable = true;
     return true;
   } catch {
@@ -144,9 +139,9 @@ import { io } from 'socket.io-client';
 let socket: ReturnType<typeof io> | null = null;
 
 export function connectSocket(token: string) {
-  if (USE_LOCAL || backendAvailable === false) return null;
+  if (backendAvailable === false) return null;
   if (socket?.connected) return socket;
-  try { socket = io(API_URL, { auth: { token } }); return socket; }
+  try { socket = io(API_URL || undefined, { auth: { token } }); return socket; }
   catch { return null; }
 }
 
