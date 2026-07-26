@@ -3,12 +3,10 @@ import { Grid3X3, Zap, MessageCircle, User, MapPin } from 'lucide-react';
 import { useApp } from '../store';
 import { useState, useEffect } from 'react';
 import { api } from '../api';
-import profiles from '../data';
 
 export default function BottomNav() {
   const { state } = useApp();
   const [unread, setUnread] = useState(0);
-  const onlineCount = profiles.filter((p) => p.online).length;
 
   useEffect(() => {
     const fetchUnread = async () => {
@@ -39,7 +37,6 @@ export default function BottomNav() {
       <NavLink to="/right-now" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
         <div className="nav-icon-wrap">
           <Zap size={20} />
-          {onlineCount > 0 && <span className="online-badge" />}
         </div>
         <span>Right Now</span>
       </NavLink>

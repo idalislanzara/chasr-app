@@ -7,7 +7,6 @@ import {
   Crosshair, Radio, RadioOff, Loader2, AlertTriangle,
   Eye, EyeOff,
 } from 'lucide-react';
-import profiles from '../data';
 import { api } from '../api';
 import { useApp } from '../store';
 import useGeolocation, {
@@ -221,6 +220,11 @@ export default function MapBrowse() {
   const [showPrompt, setShowPrompt] = useState(true);
   const [followGps, setFollowGps] = useState(true);
   const [showAccuracyRing, setShowAccuracyRing] = useState(true);
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
+
+  useEffect(() => {
+    api.getProfiles({}).then(data => setProfiles(data.profiles || [])).catch(() => {});
+  }, []);
 
   const geo = useGeolocation({ enableHighAccuracy: true, maximumAge: 3000 });
   const mapRef = useRef<L.Map | null>(null);
@@ -246,12 +250,12 @@ export default function MapBrowse() {
     : DEFAULT_CENTER;
 
   const filtered = profiles.filter(
-    (p) => !state.blockedProfiles.includes(p.id) && p.id !== 'me'
+    (p: UserProfile) => !state.blockedProfiles.includes(p.id) && p.id !== 'me'
   );
 
   const visibleProfiles = useMemo(() => {
     if (!visibleBounds) return filtered;
-    return filtered.filter((p) => visibleBounds.contains(L.latLng(p.lat, p.lng)));
+    return filtered.filter((p: UserProfile) => visibleBounds.contains(L.latLng(p.lat, p.lng)));
   }, [filtered, visibleBounds]);
 
   // Sort by distance when we have a real position
@@ -277,7 +281,7 @@ export default function MapBrowse() {
       api.favorite(profileId).then(result => {
         setFavoritedIds(prev => [...prev, profileId]);
         if (result.isMatch) {
-          const p = profiles.find((pr) => pr.id === profileId);
+          const p = profiles.find((pr: UserProfile) => pr.id === profileId);
           if (p) setMatchModal({ name: p.name, photo: p.photos[0] });
         }
       }).catch(() => {});

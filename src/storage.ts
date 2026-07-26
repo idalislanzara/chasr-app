@@ -19,38 +19,6 @@ function uuid(): string {
 }
 
 // ── Demo profiles ──
-const DEMO_PROFILES: Array<{
-  id: string; name: string; age: number; pronouns: string; identity: string;
-  tagline: string; bio: string; distance: string; lastActive: string; verified: boolean;
-  online: boolean; lat: number; lng: number; photos: string[]; height: string;
-  bodyType: string; ethnicity: string; lookingFor: string[]; interests: string[];
-}> = [
-  { id: 'p1', name: 'Zara', age: 29, pronouns: 'she/her', identity: 'Trans Woman', tagline: 'Live laugh lip sync', bio: 'City girl with a country heart. I host the best brunch parties in Brooklyn and I make a mean mimosa.', distance: '1.9 mi', lastActive: '5m ago', verified: true, online: true, lat: 40.7574, lng: -73.9679, photos: ['https://ui-avatars.com/api/?name=Zara&background=d946ef&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Zara&background=f472b6&color=fff&size=400&bold=true&format=svg'], height: "5'6''", bodyType: 'Curvy', ethnicity: 'Mixed', lookingFor: ['Dates', 'Friends', 'Chat'], interests: ['Cosplay', 'Fashion', 'Writing', 'Dancing', 'Brunch'] },
-  { id: 'p2', name: 'Maya', age: 28, pronouns: 'she/her', identity: 'Trans Woman', tagline: 'Soft boi energy', bio: 'Introverted extrovert. I will adopt every stray cat I see.', distance: '0.7 mi', lastActive: '2m ago', verified: true, online: true, lat: 40.7614, lng: -73.9776, photos: ['https://ui-avatars.com/api/?name=Maya&background=6366f1&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Maya&background=8b5cf6&color=fff&size=400&bold=true&format=svg'], height: "5'4''", bodyType: 'Slim', ethnicity: 'Hispanic/Latina', lookingFor: ['Relationship', 'Chat'], interests: ['Coffee', 'Cats', 'Reading', 'Art', 'Movies'] },
-  { id: 'p3', name: 'Nyx', age: 30, pronouns: 'she/they', identity: 'Non-Binary', tagline: 'Chaotic good', bio: 'Tattooed librarian by day, DJ by night. Ask me about my vinyl collection.', distance: '3.2 mi', lastActive: '15m ago', verified: false, online: false, lat: 40.7484, lng: -73.9857, photos: ['https://ui-avatars.com/api/?name=Nyx&background=ec4899&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Nyx&background=14b8a6&color=fff&size=400&bold=true&format=svg'], height: "5'9''", bodyType: 'Athletic', ethnicity: 'Asian', lookingFor: ['Friends', 'Right Now'], interests: ['Music', 'Tattoos', 'Gaming', 'Cooking', 'Hiking'] },
-  { id: 'p4', name: 'Aria', age: 31, pronouns: 'she/her', identity: 'Trans Woman', tagline: 'Bougie on a budget', bio: 'I make terrible puns and I am not sorry. Brunch is my love language.', distance: '1.1 mi', lastActive: 'Just now', verified: true, online: true, lat: 40.758, lng: -73.9855, photos: ['https://ui-avatars.com/api/?name=Aria&background=f59e0b&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Aria&background=ef4444&color=fff&size=400&bold=true&format=svg'], height: "5'7''", bodyType: 'Average', ethnicity: 'Black', lookingFor: ['Dates', 'Relationship'], interests: ['Foodie', 'Fashion', 'Travel', 'Photography', 'Parties'] },
-  { id: 'p5', name: 'Dakota', age: 27, pronouns: 'he/him', identity: 'Trans Man', tagline: 'Gym rat with a bookshelf', bio: 'Fitness is my therapy. Also reading sci-fi novels at 2 AM.', distance: '2.5 mi', lastActive: '30m ago', verified: true, online: false, lat: 40.742, lng: -73.989, photos: ['https://ui-avatars.com/api/?name=Dakota&background=3b82f6&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Dakota&background=10b981&color=fff&size=400&bold=true&format=svg'], height: "5'10''", bodyType: 'Muscular', ethnicity: 'White', lookingFor: ['Dates', 'Friends', 'Right Now'], interests: ['Fitness', 'Reading', 'Cooking', 'Gaming', 'Hiking'] },
-  { id: 'p6', name: 'Luna', age: 26, pronouns: 'she/her', identity: 'Trans Woman', tagline: 'Disco queen', bio: 'If there is a dance floor, I am on it.', distance: '0.3 mi', lastActive: 'Just now', verified: true, online: true, lat: 40.7505, lng: -73.9934, photos: ['https://ui-avatars.com/api/?name=Luna&background=a855f7&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Luna&background=f97316&color=fff&size=400&bold=true&format=svg'], height: "5'5''", bodyType: 'Petite', ethnicity: 'Mixed', lookingFor: ['Chat', 'Right Now', 'Friends'], interests: ['Dancing', 'Music', 'Karaoke', 'Foodie', 'Fashion'] },
-  { id: 'p7', name: 'River', age: 27, pronouns: 'they/them', identity: 'Genderqueer', tagline: 'Plant parent extraordinaire', bio: 'I have 47 plants and I know all their names.', distance: '4.1 mi', lastActive: '1h ago', verified: false, online: false, lat: 40.735, lng: -73.99, photos: ['https://ui-avatars.com/api/?name=River&background=d946ef&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=River&background=8b5cf6&color=fff&size=400&bold=true&format=svg'], height: "5'3''", bodyType: 'Slim', ethnicity: 'Pacific Islander', lookingFor: ['Friends', 'Chat', 'Networking'], interests: ['Yoga', 'Cooking', 'Art', 'Reading', 'Photography'] },
-  { id: 'p8', name: 'Jade', age: 30, pronouns: 'she/her', identity: 'Trans Woman', tagline: 'Sarcastic sweetheart', bio: 'Will trade baked goods for good conversation.', distance: '1.8 mi', lastActive: '10m ago', verified: true, online: true, lat: 40.765, lng: -73.975, photos: ['https://ui-avatars.com/api/?name=Jade&background=14b8a6&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Jade&background=3b82f6&color=fff&size=400&bold=true&format=svg'], height: "5'8''", bodyType: 'Curvy', ethnicity: 'Middle Eastern', lookingFor: ['Dates', 'Relationship'], interests: ['Cooking', 'Dogs', 'Movies', 'Travel', 'Brunch'] },
-  { id: 'p9', name: 'Kai', age: 28, pronouns: 'he/him', identity: 'Trans Man', tagline: 'Skater boy turned tech bro', bio: 'Building apps by day, skating by night.', distance: '5.0 mi', lastActive: '45m ago', verified: false, online: false, lat: 40.728, lng: -73.995, photos: ['https://ui-avatars.com/api/?name=Kai&background=f472b6&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Kai&background=f59e0b&color=fff&size=400&bold=true&format=svg'], height: "6'0''", bodyType: 'Athletic', ethnicity: 'Asian', lookingFor: ['Friends', 'Dates', 'Networking'], interests: ['Tech', 'Gaming', 'Music', 'Fitness', 'Coffee'] },
-  { id: 'p10', name: 'Serena', age: 32, pronouns: 'she/her', identity: 'Trans Woman', tagline: 'Pageant queen in training', bio: 'Confidence is my superpower.', distance: '2.2 mi', lastActive: '5m ago', verified: true, online: true, lat: 40.754, lng: -73.98, photos: ['https://ui-avatars.com/api/?name=Serena&background=ec4899&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Serena&background=10b981&color=fff&size=400&bold=true&format=svg'], height: "5'11''", bodyType: 'Athletic', ethnicity: 'Hispanic/Latina', lookingFor: ['Dates', 'Relationship', 'Friends'], interests: ['Fashion', 'Dancing', 'Travel', 'Parties', 'Cosplay'] },
-  { id: 'p11', name: 'Phoenix', age: 25, pronouns: 'ze/zir', identity: 'Agender', tagline: 'Cosmic chaos gremlin', bio: 'Non-binary nerd who lives for anime conventions and iced coffee.', distance: '3.7 mi', lastActive: '20m ago', verified: false, online: true, lat: 40.74, lng: -73.982, photos: ['https://ui-avatars.com/api/?name=Phoenix&background=ef4444&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Phoenix&background=6366f1&color=fff&size=400&bold=true&format=svg'], height: "5'2''", bodyType: 'Petite', ethnicity: 'White', lookingFor: ['Chat', 'Friends'], interests: ['Anime', 'Gaming', 'Cosplay', 'Art', 'Coffee'] },
-  { id: 'p12', name: 'Mika', age: 28, pronouns: 'she/her', identity: 'Trans Woman', tagline: 'Vogue or die trying', bio: 'Ballroom scene veteran.', distance: '1.5 mi', lastActive: 'Just now', verified: true, online: true, lat: 40.752, lng: -73.987, photos: ['https://ui-avatars.com/api/?name=Mika&background=a855f7&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Mika&background=14b8a6&color=fff&size=400&bold=true&format=svg'], height: "5'7''", bodyType: 'Curvy', ethnicity: 'Black', lookingFor: ['Right Now', 'Chat', 'Friends'], interests: ['Dancing', 'Fashion', 'Cooking', 'Music', 'Parties'] },
-  { id: 'p13', name: 'Cameron', age: 26, pronouns: 'he/him', identity: 'Trans Man', tagline: 'Coffee snob and proud', bio: 'I have opinions about pour-over ratios.', distance: '0.9 mi', lastActive: '8m ago', verified: true, online: true, lat: 40.756, lng: -73.984, photos: ['https://ui-avatars.com/api/?name=Cameron&background=8b5cf6&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Cameron&background=f97316&color=fff&size=400&bold=true&format=svg'], height: "5'9''", bodyType: 'Average', ethnicity: 'White', lookingFor: ['Dates', 'Chat'], interests: ['Coffee', 'Travel', 'Photography', 'Cooking', 'Hiking'] },
-  { id: 'p14', name: 'Dahlia', age: 35, pronouns: 'she/her', identity: 'Trans Woman', tagline: 'Mama bear vibes', bio: 'Two kids, one ex, zero regrets.', distance: '6.3 mi', lastActive: '2h ago', verified: false, online: false, lat: 40.72, lng: -74.005, photos: ['https://ui-avatars.com/api/?name=Dahlia&background=f59e0b&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Dahlia&background=d946ef&color=fff&size=400&bold=true&format=svg'], height: "5'5''", bodyType: 'Full-figured', ethnicity: 'Black', lookingFor: ['Relationship', 'Friends'], interests: ['Cooking', 'Reading', 'Dogs', 'Travel', 'Movies'] },
-  { id: 'p15', name: 'Reese', age: 25, pronouns: 'he/they', identity: 'Trans Man', tagline: 'Chaos energy', bio: 'I am either your best friend or your worst nightmare.', distance: '2.8 mi', lastActive: '12m ago', verified: false, online: true, lat: 40.745, lng: -73.978, photos: ['https://ui-avatars.com/api/?name=Reese&background=3b82f6&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Reese&background=f472b6&color=fff&size=400&bold=true&format=svg'], height: "5'8''", bodyType: 'Slim', ethnicity: 'Mixed', lookingFor: ['Right Now', 'Chat'], interests: ['Gaming', 'Music', 'Tattoos', 'Anime', 'Parties'] },
-  { id: 'p16', name: 'Valentina', age: 27, pronouns: 'she/her', identity: 'Trans Woman', tagline: 'Sunshine with an edge', bio: 'Tattoo artist by trade, poet by night.', distance: '1.3 mi', lastActive: '3m ago', verified: true, online: true, lat: 40.759, lng: -73.991, photos: ['https://ui-avatars.com/api/?name=Valentina&background=6366f1&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Valentina&background=ef4444&color=fff&size=400&bold=true&format=svg'], height: "5'6''", bodyType: 'Athletic', ethnicity: 'Hispanic/Latina', lookingFor: ['Dates', 'Friends', 'Right Now'], interests: ['Tattoos', 'Art', 'Music', 'Dancing', 'Coffee'] },
-  { id: 'p17', name: 'Elliot', age: 29, pronouns: 'he/him', identity: 'Trans Man', tagline: 'Board game collector', bio: 'I own 200+ board games and I will destroy you at Catan.', distance: '4.5 mi', lastActive: '1h ago', verified: true, online: false, lat: 40.732, lng: -73.97, photos: ['https://ui-avatars.com/api/?name=Elliot&background=10b981&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Elliot&background=ec4899&color=fff&size=400&bold=true&format=svg'], height: "5'11''", bodyType: 'Average', ethnicity: 'White', lookingFor: ['Friends', 'Dates', 'Networking'], interests: ['Gaming', 'Cooking', 'Reading', 'Hiking', 'Tech'] },
-  { id: 'p18', name: 'Amara', age: 25, pronouns: 'she/her', identity: 'Trans Woman', tagline: 'Soft life only', bio: 'Skincare routine takes 45 minutes and I am not sorry.', distance: '2.0 mi', lastActive: '7m ago', verified: false, online: true, lat: 40.751, lng: -73.983, photos: ['https://ui-avatars.com/api/?name=Amara&background=f97316&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Amara&background=8b5cf6&color=fff&size=400&bold=true&format=svg'], height: "5'4''", bodyType: 'Petite', ethnicity: 'Black', lookingFor: ['Chat', 'Friends'], interests: ['Yoga', 'Coffee', 'Fashion', 'Art', 'Brunch'] },
-  { id: 'p19', name: 'Sage', age: 30, pronouns: 'they/them', identity: 'Genderfluid', tagline: 'Mercury is in retrograde and so am I', bio: 'Astrologer, tarot reader, and professional over-thinker.', distance: '3.0 mi', lastActive: '25m ago', verified: true, online: false, lat: 40.744, lng: -73.996, photos: ['https://ui-avatars.com/api/?name=Sage&background=d946ef&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Sage&background=f59e0b&color=fff&size=400&bold=true&format=svg'], height: "5'6''", bodyType: 'Average', ethnicity: 'Mixed', lookingFor: ['Chat', 'Friends', 'Networking'], interests: ['Yoga', 'Art', 'Reading', 'Coffee', 'Music'] },
-  { id: 'p20', name: 'Marco', age: 33, pronouns: 'he/him', identity: 'Trans Man', tagline: 'Chef who cannot cook', bio: 'I work in a restaurant but I eat cereal for dinner.', distance: '5.5 mi', lastActive: '40m ago', verified: true, online: false, lat: 40.725, lng: -74.0, photos: ['https://ui-avatars.com/api/?name=Marco&background=14b8a6&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Marco&background=3b82f6&color=fff&size=400&bold=true&format=svg'], height: "6'1''", bodyType: 'Muscular', ethnicity: 'Hispanic/Latina', lookingFor: ['Dates', 'Relationship'], interests: ['Foodie', 'Music', 'Fitness', 'Travel', 'Parties'] },
-  { id: 'p21', name: 'Kiki', age: 25, pronouns: 'she/her', identity: 'Trans Woman', tagline: 'Main character energy', bio: 'Makeup artist and professional drama starter.', distance: '1.0 mi', lastActive: 'Just now', verified: true, online: true, lat: 40.753, lng: -73.988, photos: ['https://ui-avatars.com/api/?name=Kiki&background=a855f7&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Kiki&background=6366f1&color=fff&size=400&bold=true&format=svg'], height: "5'3''", bodyType: 'Slim', ethnicity: 'Asian', lookingFor: ['Chat', 'Friends', 'Right Now'], interests: ['Fashion', 'Makeup', 'Dancing', 'Parties', 'Photography'] },
-  { id: 'p22', name: 'Tobias', age: 28, pronouns: 'he/him', identity: 'Trans Man', tagline: 'Dad jokes but make it queer', bio: 'I am puns personified. Also a park ranger.', distance: '3.8 mi', lastActive: '18m ago', verified: false, online: true, lat: 40.738, lng: -73.975, photos: ['https://ui-avatars.com/api/?name=Tobias&background=ef4444&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Tobias&background=f97316&color=fff&size=400&bold=true&format=svg'], height: "6'2''", bodyType: 'Athletic', ethnicity: 'White', lookingFor: ['Dates', 'Relationship'], interests: ['Hiking', 'Dogs', 'Cooking', 'Camping', 'Photography'] },
-  { id: 'p23', name: 'Blair', age: 26, pronouns: 'she/they', identity: 'Trans Woman', tagline: 'Cottagecore meets club kid', bio: 'I knit my own clothes and then wear them to raves.', distance: '2.4 mi', lastActive: '14m ago', verified: true, online: false, lat: 40.747, lng: -73.992, photos: ['https://ui-avatars.com/api/?name=Blair&background=f472b6&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Blair&background=ec4899&color=fff&size=400&bold=true&format=svg'], height: "5'7''", bodyType: 'Average', ethnicity: 'White', lookingFor: ['Friends', 'Chat', 'Dates'], interests: ['Knitting', 'Music', 'Art', 'Nature', 'Coffee'] },
-  { id: 'p24', name: 'Jaxon', age: 25, pronouns: 'he/him', identity: 'Trans Man', tagline: 'Tattooed twink with ambition', bio: 'Software engineer by trade, musician by passion.', distance: '4.0 mi', lastActive: '35m ago', verified: false, online: false, lat: 40.731, lng: -73.985, photos: ['https://ui-avatars.com/api/?name=Jaxon&background=8b5cf6&color=fff&size=400&bold=true&format=svg', 'https://ui-avatars.com/api/?name=Jaxon&background=10b981&color=fff&size=400&bold=true&format=svg'], height: "5'10''", bodyType: 'Slim', ethnicity: 'Mixed', lookingFor: ['Dates', 'Friends'], interests: ['Music', 'Tech', 'Gaming', 'Tattoos', 'Coffee'] },
-];
-
 interface StoredUser {
   id: string;
   email: string;
@@ -75,38 +43,6 @@ interface StoredUser {
   joined_at: number;
   last_active: number;
 }
-
-function ensureDemoProfiles() {
-  const existing = dbGet<StoredUser[]>('users', []);
-  if (existing.length > 0) return;
-  const demoUsers: StoredUser[] = DEMO_PROFILES.map(p => ({
-    id: p.id,
-    email: `demo_${p.id}@chasr.app`,
-    passwordHash: '',
-    passwordSalt: '',
-    name: p.name,
-    age: p.age,
-    pronouns: p.pronouns,
-    identity: p.identity,
-    tagline: p.tagline,
-    bio: p.bio,
-    photos: p.photos,
-    height: p.height,
-    body_type: p.bodyType,
-    ethnicity: p.ethnicity,
-    looking_for: p.lookingFor,
-    interests: p.interests,
-    verified: p.verified,
-    lat: p.lat,
-    lng: p.lng,
-    location_sharing: true,
-    joined_at: Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000),
-    last_active: p.online ? Date.now() - Math.floor(Math.random() * 600000) : Date.now() - Math.floor(Math.random() * 86400000),
-  }));
-  dbSet('users', demoUsers);
-}
-
-ensureDemoProfiles();
 
 // ── Auth ──
 
@@ -396,8 +332,7 @@ export function localGetOnline() {
 // ── Seed ──
 
 export function localSeed() {
-  ensureDemoProfiles();
-  return { ok: true, count: DEMO_PROFILES.length };
+  return { ok: true, count: 0 };
 }
 
 // ── Photo upload (data URL based) ──
