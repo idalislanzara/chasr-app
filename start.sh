@@ -1,25 +1,24 @@
 #!/bin/bash
+# Chasr full-stack launcher — starts backend + tunnel persistently via tmux
 cd /root/Documents/projects/chasr
 
 # Kill old processes
-pkill -f "node server/index.js" 2>/dev/null
+pkill -f "node index.cjs" 2>/dev/null
 pkill -f cloudflared 2>/dev/null
 sleep 1
 
-# Start server
-nohup node server/index.js > /tmp/chasr-server.log 2>&1 &
-echo "Server PID: $!"
+# Start backend server (persistent)
+tmux kill-session -t chasr 2>/dev/null
+tmux kill-session -t tunnel 2>/dev/null
+tmux new-session -d -s chasr "cd /root/Documents/projects/chasr/server && node index.cjs 2>&1 | tee /tmp/chasr-server.log"
 sleep 3
 
-# Start tunnel
-nohup cloudflared tunnel --url http://localhost:3001 > /tmp/cloudflared.log 2>&1 &
-echo "Tunnel PID: $!"
-sleep 8
+# Start cloudflare tunnel (persistent)
+tmux new-session -d -s tunnel "cloudflared tunnel --url http://localhost:3001 2>&1 | tee /tmp/chasr-tunnel.log"
+sleep 10
 
-# Get URL
-URL=$(grep -o 'https://[a-zA-Z0-9-]*\.trycloudflare\.com' /tmp/cloudflared.log | tail -1)
+URL=$(grep -o 'https://[a-zA-Z0-9-]*\.trycloudflare\.com' /tmp/chasr-tunnel.log | head -1)
 echo ""
-echo "================================"
-echo "  CHASR IS LIVE:"
-echo "  $URL"
-echo "================================"
+echo "=========================================="
+echo "  CHASR IS LIVE:  $URL"
+echo "=========================================="

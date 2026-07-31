@@ -3,3 +3,4 @@ server/chasr.db
 *.db
 .env
 .DS_Store
+watchdog.sh
