@@ -1,73 +1,83 @@
-# Chasr Launch Guide
+# Chasr — Go Live Guide (Production)
 
-## Phase 1: Get the Backend Live (5 minutes)
+## Current Live Demo
+- App (shared database): `https://wishlist-flame-treasure-receptor.trycloudflare.com`
+- Backup frontend: `https://idalislanzara.github.io/chasr-app/`
 
-1. Go to https://render.com → Sign up (free)
-2. Click "New +" → "Web Service"
-3. Connect GitHub repo: `idalislanzara/chasr-app`
-4. Settings:
-   - Name: `chasr`
-   - Runtime: `Node`
-   - Build: `npm install && npm run build`
-   - Start: `node server/index.cjs`
-5. Add env var: `JWT_SECRET` = `chasr_secret_2026`
-6. Click "Create Web Service"
-7. You get: `https://chasr-xxxx.onrender.com`
+> ⚠️ The demo tunnel runs from a local machine. For the permanent launch, deploy to Render (below) — then the app never depends on anyone's laptop.
 
-## Phase 2: Get on the Play Store
+---
 
-### Prerequisites
-- Google Play Developer Account: https://play.google.com/console ($25 one-time)
-- Android Studio installed
+## Step 1 — Deploy the backend (10 minutes, ~$7/mo, required for launch)
 
-### Build the Android APK
+1. Go to `https://render.com` → **Sign up with GitHub** (use the same GitHub account that owns `idalislanzara/chasr-app`)
+2. After login: **New +** (top right) → **Web Service**
+3. Connect the repository `chasr-app`
+4. Render auto-detects `render.yaml` — just click **Create Web Service**
+5. Wait ~3 minutes for the build. When the URL shows green (Healthy), the backend is live:
+   - Your permanent URL will be like `https://chasr.onrender.com`
+6. **Update the frontend to use it** (one command, run by your developer):
+   ```bash
+   cd /root/Documents/projects/chasr
+   VITE_API_URL=https://YOUR-APP.onrender.com npm run build
+   # then sync dist -> docs and push to GitHub Pages
+   ```
+
+That's it. From then on:
+- **One shared database** on a persistent disk — everyone sees everyone
+- **Stable HTTPS URL** — no more changing links
+- **Auto-restarts** on crash, **never** depends on this machine
+- Real-time chat/typing works through the same URL
+
+### Why paid ($7/mo) and not free?
+Free hosting tiers wipe the database whenever the server restarts — that would be the same deadend as before. Render Starter keeps a permanent disk (1 GB is plenty for launch). You said you'd pay for reliability — this is that.
+
+---
+
+## Step 2 — Keep GitHub Pages pointing at the backend
+Once Render is live, the GitHub Pages URL becomes a second door into the same app (via the Render URL). Your developer runs the single command above, pushes, done.
+
+---
+
+## Step 3 — App Store launch (needs your accounts)
+
+### Google Play ($25 one-time)
+1. Create a Google Play Developer account at `play.google.com/console`
+2. Your developer signs the Android build (`android/` folder exists) and uploads via Play Console
+3. Complete the data-safety form + content rating (18+)
+
+### Apple App Store ($99/year)
+1. Create an Apple Developer account at `developer.apple.com`
+2. Requires a Mac with Xcode — your developer signs the iOS build (`ios/` folder exists)
+3. Submit via App Store Connect (18+ rating, privacy policy)
+
+### Before submitting
+- Privacy policy: `PRIVACY_POLICY.md` (needs your real contact email)
+- Store listing text: `STORE_LISTING.md`
+- Screenshots of the live app
+
+---
+
+## What "fully operational" means right now
+| Feature | Status |
+|---|---|
+| Age gate (18+ DOB + terms) | ✅ live |
+| Register / login (hashed passwords) | ✅ live |
+| Profile creation + photos | ✅ live |
+| Browse + filters + search | ✅ live |
+| Like / favorite + match detection | ✅ live |
+| Chat with unread badges + typing | ✅ live |
+| Nearby (GPS, distance) | ✅ live |
+| Right Now (online users) | ✅ live |
+| Store (premium plans) | ✅ live |
+| Shared database across all users | ✅ on Render after Step 1 |
+| App stores | 🔒 needs developer accounts (Step 3) |
+
+---
+
+## If something breaks (before Render deploy)
+The watchdog on this machine restarts the server and tunnel automatically and re-syncs GitHub Pages when the tunnel URL changes. Check status:
 ```bash
-cd chasr
-npm install
-npm run build
-npx cap sync android
-cd android && ./gradlew assembleRelease
+tmux ls            # should list: chasr, tunnel, watchdog
+bash start.sh      # full manual restart
 ```
-
-### Store Listing
-- **Title:** Chasr — Dating for Trans
-- **Short description:** Find your people. Chasr is a dating app built for the trans community.
-- **Category:** Social
-- **Content rating:** Mature 17+
-- **Privacy policy:** Already in PRIVACY_POLICY.md
-
-### Screenshots needed (at least 4):
-1. Login/Register screen
-2. Browse grid
-3. Profile view
-4. Chat/inbox
-
-## Phase 3: Marketing & Growth
-
-### Free channels
-1. **Reddit** — Post in r/trans, r/asktransgender, r/lgbt, r/grindr
-   - Title: "I built Chasr — a dating app for the trans community"
-   - Don't spam — share your story of why you built it
-2. **Twitter/X** — Post with hashtags: #trans #dating #LGBTQ #app
-3. **TikTok** — Short video showing the app, "POV: you wanted a dating app that gets you"
-4. **Discord** — Join trans servers and share (ask permission first)
-5. **Instagram** — Post screenshots with trans-friendly hashtags
-6. **Tumblr** — Trans community is huge there
-7. **Bluesky** — Growing LGBTQ+ community
-
-### Content ideas
-- "Built this because Grindr wasn't made for us"
-- "Finally a dating app where you can be yourself"
-- User testimonials (once you have real users)
-- "Day 1 of building a trans dating app" series on TikTok
-
-### Partnerships
-- Reach out to trans influencers/content creators
-- Offer free premium for early adopters
-- Partner with LGBTQ+ organizations
-
-## Phase 4: iOS (later)
-
-- Need Apple Developer account ($99/year)
-- Use `npx cap open ios` to open in Xcode
-- Submit to App Store Connect
