@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const multer = require('multer');
+const fs = require('fs');
 
 // ── Config ──
 const PORT = process.env.PORT || 3001;
@@ -15,7 +16,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'chasr_secret_' + uuidv4();
 const BCRYPT_ROUNDS = 12;
 
 // ── Database ──
-const db = new Database(path.join(__dirname, 'chasr.db'));
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const db = new Database(process.env.DB_PATH || path.join(DATA_DIR, 'chasr.db'));
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
@@ -98,16 +101,16 @@ app.use(express.json({ limit: '10mb' }));
 
 // Serve uploaded photos
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
+  destination: (req, file, cb) => cb(null, process.env.UPLOADS_PATH || path.join(DATA_DIR, 'uploads')),
   filename: (req, file, cb) => cb(null, Date.now() + '-' + uuidv4().slice(0, 8) + path.extname(file.originalname)),
 });
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
-const fs = require('fs');
-if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
-  fs.mkdirSync(path.join(__dirname, 'uploads'));
+const uploadsDir = process.env.UPLOADS_PATH || path.join(DATA_DIR, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadsDir));
 
 // ── Auth Middleware ──
 function authMiddleware(req, res, next) {
@@ -121,6 +124,9 @@ function authMiddleware(req, res, next) {
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
+
+// ── Health ──
+app.get('/api/health', (req, res) => res.json({ ok: true, uptime: Math.floor(process.uptime()) }));
 
 // ── Auth Routes ──
 app.post('/api/auth/register', async (req, res) => {

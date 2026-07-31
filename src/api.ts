@@ -10,7 +10,7 @@ async function checkBackend(): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch(`${API_URL}/api/online`, {
+    const res = await fetch(`${API_URL}/api/health`, {
       method: 'GET',
       signal: controller.signal,
       headers: { 'Content-Type': 'application/json' },
