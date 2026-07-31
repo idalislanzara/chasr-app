@@ -128,7 +128,7 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
     const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
     if (existing) return res.status(400).json({ error: 'Account already exists' });
@@ -434,32 +434,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const otherId = chat.user1_id === req.userId ? chat.user2_id : chat.user1_id;
   io.to(`user_${otherId}`).emit('message', msg);
 
-  // Auto-reply (for demo profiles)
-  const otherUser = db.prepare('SELECT name FROM users WHERE id = ?').get(otherId);
-  if (otherUser && !otherId.startsWith('user_')) {
-    // This is a real user, no auto-reply
-  } else {
-    // Simulated reply
-    const replies = [
-      'Hey! Thanks for the message 😊',
-      'Omg hi!! How are you?',
-      'Nice to meet you! Tell me more about yourself',
-      'I love your vibe! What are you up to?',
-      'Hehe hey there 💕',
-      'Yooo what\'s good!',
-      'Ahh this is exciting! 💜',
-      'So what do you do for fun?',
-    ];
-    setTimeout(() => {
-      const replyId = 'msg_' + uuidv4().slice(0, 12);
-      const replyNow = Date.now();
-      db.prepare('INSERT INTO messages (id, chat_id, sender_id, text, created_at) VALUES (?, ?, ?, ?, ?)')
-        .run(replyId, req.params.chatId, otherId, replies[Math.floor(Math.random() * replies.length)], replyNow);
-      db.prepare('UPDATE chats SET last_message = ?, last_message_at = ? WHERE id = ?')
-        .run('New message', replyNow, req.params.chatId);
-      io.to(`user_${req.userId}`).emit('message', { id: replyId, chat_id: req.params.chatId, sender_id: otherId, text: replies[Math.floor(Math.random() * replies.length)], read: 0, created_at: replyNow });
-    }, 1500 + Math.random() * 3000);
-  }
 
   res.json({ message: msg });
 });
@@ -481,86 +455,6 @@ app.get('/api/online', authMiddleware, (req, res) => {
   }));
 
   res.json({ profiles: safe });
-});
-
-// ── Seed Demo Profiles ──
-app.post('/api/seed', (req, res) => {
-  const count = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
-  if (count > 1) return res.json({ message: 'Already seeded', count });
-
-  const names = [
-    { name: 'Zara', identity: 'Trans Woman', pronouns: 'she/her' },
-    { name: 'Maya', identity: 'Trans Woman', pronouns: 'she/her' },
-    { name: 'Jade', identity: 'Trans Woman', pronouns: 'she/her' },
-    { name: 'Luna', identity: 'Trans Woman', pronouns: 'she/her' },
-    { name: 'Aria', identity: 'Trans Woman', pronouns: 'she/her' },
-    { name: 'Celeste', identity: 'Trans Woman', pronouns: 'she/her' },
-    { name: 'Vivian', identity: 'Trans Woman', pronouns: 'she/her' },
-    { name: 'Scarlett', identity: 'Trans Woman', pronouns: 'she/her' },
-    { name: 'Naomi', identity: 'Trans Woman', pronouns: 'she/her' },
-    { name: 'Destiny', identity: 'Trans Woman', pronouns: 'she/her' },
-    { name: 'Serena', identity: 'Trans Woman', pronouns: 'she/her' },
-    { name: 'Olivia', identity: 'Trans Woman', pronouns: 'she/her' },
-    { name: 'Kai', identity: 'Trans Man', pronouns: 'he/him' },
-    { name: 'Dylan', identity: 'Trans Man', pronouns: 'he/him' },
-    { name: 'Ren', identity: 'Trans Man', pronouns: 'he/they' },
-    { name: 'Ezra', identity: 'Trans Man', pronouns: 'he/him' },
-    { name: 'Marcus', identity: 'Trans Man', pronouns: 'he/him' },
-    { name: 'Jordan', identity: 'Trans Man', pronouns: 'he/him' },
-    { name: 'Blake', identity: 'Trans Man', pronouns: 'he/him' },
-    { name: 'Finn', identity: 'Trans Man', pronouns: 'he/him' },
-    { name: 'Leo', identity: 'Trans Man', pronouns: 'he/him' },
-    { name: 'Theo', identity: 'Trans Man', pronouns: 'he/him' },
-    { name: 'Alex', identity: 'Non-Binary', pronouns: 'they/them' },
-    { name: 'Sage', identity: 'Non-Binary', pronouns: 'they/them' },
-    { name: 'Quinn', identity: 'Non-Binary', pronouns: 'they/them' },
-    { name: 'Avery', identity: 'Non-Binary', pronouns: 'they/them' },
-    { name: 'Harper', identity: 'Non-Binary', pronouns: 'they/them' },
-    { name: 'Dakota', identity: 'Genderfluid', pronouns: 'any pronouns' },
-    { name: 'Skylar', identity: 'Non-Binary', pronouns: 'they/them' },
-    { name: 'River', identity: 'Genderqueer', pronouns: 'ze/zir' },
-  ];
-
-  const taglines = ['Live laugh lip sync','Soft boi energy','Bookworm with a wild side','Gym rat in denial','Life of the party','Plant parent','Goth energy','Chaotic good','Dad jokes','Siren of the stage','Coffee snob','Certified nerd','Sunshine person','Night owl','Dog mom','Foodie for life','Adventure awaits','Beach bum','City kid','Music is life','Art lover','Tech geek','Movie buff','Home chef','Photographer','Free spirit','Dancer','Writer','Dreamer','Healer'];
-  const bios = ['City girl with a country heart. Love brunch.','Art student by day, DJ by night.','PhD student. I will steal your fries.','Software engineer who goes outside sometimes.','Event planner, dance floor queen.','Environmental scientist with 47 houseplants.','Tattoo artist with a dark sense of humor.','Barista who makes latte art.','High school teacher. I make pancakes.','Pop singer working on my debut EP.','Photography major, urban explorer.','Nurse who saves lives by day.','Baker extraordinaire.','Chef who believes food is love.','Startup founder building something that matters.','Yoga instructor finding peace.','Writer working on my first novel.','Graphic designer, queer art passion.','Personal trainer who makes you laugh.','DJ spinning beats for your soul.','Scientist with glitter in my hair.','Pilot who has been everywhere.','Barber with the best conversations.','Journalist telling important stories.','Astronomy nerd looking for stars.','Former figure skater, ice cream lover.','Chaotic neutral with a heart of gold.','Swim coach who makes waves.','Sommelier who knows wine and vibes.','Dance instructor making everyone shine.'];
-  const interests = ['Dancing','Music','Gaming','Cooking','Travel','Photography','Art','Fitness','Yoga','Reading','Movies','Anime','Tattoos','Fashion','Coffee','Hiking','Dogs','Cats','Karaoke','Cosplay','Tech','Foodie','Brunch','Parties','Surfing','Cycling','Swimming','DJing','Painting','Writing','Poetry','Theater','Wine','Camping','Meditation','Boxing','Running','Sushi','Baking'];
-  const bodyTypes = ['Slim','Athletic','Average','Curvy','Petite','Muscular'];
-  const ethnicities = ['Asian','Black','Hispanic/Latina','Middle Eastern','Mixed','White','Other'];
-  const heights = ['4ft 10in','5ft 0in','5ft 2in','5ft 4in','5ft 6in','5ft 8in','5ft 10in','6ft 0in','6ft 2in'];
-  const coords = [[40.758,-73.985],[40.748,-73.985],[40.728,-73.994],[40.761,-73.977],[40.752,-73.977],[40.742,-74.006],[40.719,-73.998],[40.706,-73.996],[40.689,-74.044],[40.678,-73.944],[40.783,-73.971],[40.790,-73.952],[40.779,-73.963],[40.748,-73.968],[40.741,-73.989],[40.735,-74.000],[40.728,-73.794],[40.712,-74.006],[40.748,-73.985],[40.758,-73.985],[40.782,-73.965],[40.773,-73.956],[40.748,-73.973],[40.720,-73.990],[40.730,-73.997],[40.717,-74.000],[40.689,-74.044],[40.641,-73.946],[40.579,-73.970],[40.650,-73.949]];
-  const photos = (name, gender) => {
-    const idx = Math.floor(Math.random() * 80) + 1;
-    return gender === 'w' ? [`https://randomuser.me/api/portraits/women/${idx}.jpg`] : [`https://randomuser.me/api/portraits/men/${idx}.jpg`];
-  };
-
-  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-  const pickN = (arr, n) => { const s = [...arr].sort(() => Math.random()-0.5); return [...new Set(s.slice(0, n))]; };
-
-  const insert = db.prepare(`INSERT INTO users (id, email, password_hash, name, age, pronouns, identity, tagline, bio, photos, height, body_type, ethnicity, looking_for, interests, verified, lat, lng, location_sharing, joined_at, last_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-
-  const tx = db.transaction(() => {
-    names.forEach((n, i) => {
-      const age = 18 + Math.floor(Math.random() * 15);
-      const c = coords[i % coords.length];
-      const lat = c[0] + (Math.random() - 0.5) * 0.04;
-      const lng = c[1] + (Math.random() - 0.5) * 0.04;
-      const gender = n.identity.includes('Woman') ? 'w' : 'm';
-      const now = Date.now();
-      const lastActive = now - Math.floor(Math.random() * 5 * 60 * 1000);
-
-      insert.run(
-        'demo_' + i, n.name.toLowerCase() + '@demo.chasr', 'demo_hash',
-        n.name, age, n.pronouns, n.identity, taglines[i], bios[i],
-        JSON.stringify(photos(n.name, gender)), pick(heights), pick(bodyTypes), pick(ethnicities),
-        JSON.stringify(pickN(['Dates','Friends','Chat','Right Now','Relationship'], 2 + Math.floor(Math.random() * 2))),
-        JSON.stringify(pickN(interests, 3 + Math.floor(Math.random() * 3))),
-        Math.random() < 0.7 ? 1 : 0, lat, lng, 1, now, lastActive
-      );
-    });
-  });
-
-  tx();
-  res.json({ message: 'Seeded ' + names.length + ' demo profiles', count: names.length });
 });
 
 // ── Socket.io ──
