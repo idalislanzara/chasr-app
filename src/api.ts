@@ -1,7 +1,7 @@
 import * as storage from './storage';
 
 // Empty string = same origin (works on Render, fails on GitHub Pages → falls back to localStorage)
-const API_URL = import.meta.env.VITE_API_URL || 'https://wishlist-flame-treasure-receptor.trycloudflare.com';
+const API_URL = import.meta.env.VITE_API_URL || 'https://duo-radios-feeds-filling.trycloudflare.com';
 
 let backendAvailable: boolean | null = null;
 
