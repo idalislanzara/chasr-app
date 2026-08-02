@@ -8,7 +8,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     return (
       <div className="auth-page">
         <div className="auth-container" style={{ justifyContent: 'center' }}>
-          <div className="auth-logo" style={{ fontSize: 40 }}>chasr</div>
+          <div className="auth-logo" style={{ fontSize: 40 }}>chasr+</div>
           <div className="spinner-large" />
         </div>
       </div>

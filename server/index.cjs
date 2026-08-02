@@ -498,5 +498,5 @@ app.get('/{*splat}', (req, res) => {
 
 // ── Start ──
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Chasr server running on port ${PORT}`);
+  console.log(`Chasr+ server running on port ${PORT}`);
 });

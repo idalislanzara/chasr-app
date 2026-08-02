@@ -111,7 +111,7 @@ export default function Register() {
       pronouns,
       identity,
       tagline: tagline.trim() || `Hey, I'm ${name}! 👋`,
-      bio: bio.trim() || `Just joined Chasr!`,
+      bio: bio.trim() || `Just joined Chasr+!`,
       photos: [],
       height,
       body_type,
@@ -127,7 +127,7 @@ export default function Register() {
     return (
       <div className="auth-page">
         <div className="auth-container" style={{ justifyContent: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div className="auth-logo" style={{ fontSize: 40 }}>chasr</div>
+          <div className="auth-logo" style={{ fontSize: 40 }}>chasr+</div>
           <div className="spinner-large" />
         </div>
       </div>
@@ -141,7 +141,7 @@ export default function Register() {
         {step === 'account' && (
           <>
             <div className="auth-hero">
-              <h1 className="auth-logo">chasr</h1>
+              <h1 className="auth-logo">chasr+</h1>
               <p className="auth-subtitle">Create your account</p>
             </div>
 
@@ -392,7 +392,7 @@ export default function Register() {
                   <div className="wizard-done-icon">🎉</div>
                   <h2>You're all set!</h2>
                   <p className="wizard-hint">
-                    Welcome to Chasr, <strong>{name}</strong>!
+                    Welcome to Chasr+, <strong>{name}</strong>!
                     <br />Your profile is ready. Let's find your people.
                   </p>
 

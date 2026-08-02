@@ -22,7 +22,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           color: '#f0eff5', fontFamily: 'Inter, sans-serif', padding: 20, textAlign: 'center',
         }}>
           <h1 style={{ fontSize: 42, fontWeight: 800, background: 'linear-gradient(135deg, #d946ef, #f472b6)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 16 }}>chasr</h1>
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 16 }}>chasr+</h1>
           <p style={{ color: '#a09eb8', marginBottom: 20 }}>Something went wrong.</p>
           <p style={{ color: '#6b6985', fontSize: 13, marginBottom: 20 }}>{this.state.error}</p>
           <button onClick={() => window.location.reload()}

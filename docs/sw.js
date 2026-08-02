@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chasr-v1';
+const CACHE_NAME = 'chasr-plus-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -70,7 +70,7 @@ self.addEventListener('push', (event) => {
   if (event.data) {
     const data = event.data.json();
     event.waitUntil(
-      self.registration.showNotification(data.title || 'Chasr', {
+      self.registration.showNotification(data.title || 'Chasr+', {
         body: data.body || 'You have a new message!',
         icon: '/icon-192.png',
         badge: '/icon-192.png',

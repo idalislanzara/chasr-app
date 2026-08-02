@@ -77,7 +77,7 @@ const storeItems: StoreItem[] = [
 
 const premiumPlans = [
   {
-    name: 'Chasr Plus',
+    name: 'Plus',
     price: '$9.99/mo',
     period: 'per month',
     icon: <Star size={20} />,
@@ -91,13 +91,13 @@ const premiumPlans = [
     color: '#d946ef',
   },
   {
-    name: 'Chasr Premium',
+    name: 'Premium',
     price: '$19.99/mo',
     period: 'per month',
     icon: <Crown size={20} />,
     popular: true,
     features: [
-      'Everything in Chasr Plus',
+      'Everything in Plus',
       'Unlimited Boosts (1/week)',
       'Incognito mode included',
       'Profile verification badge',
