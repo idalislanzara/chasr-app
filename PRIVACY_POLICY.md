@@ -1,11 +1,11 @@
-# Chasr+ — Privacy Policy
+# Chasr — Privacy Policy
 
 **Effective Date:** January 1, 2026  
 **Last Updated:** January 1, 2026
 
 ## Overview
 
-Chasr+ ("we", "us", or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our mobile application and website.
+Chasr ("we", "us", or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our mobile application and website.
 
 ## Information We Collect
 
@@ -22,7 +22,7 @@ Chasr+ ("we", "us", or "our") is committed to protecting your privacy. This Priv
 
 ## How We Use Your Information
 
-- To provide and maintain the Chasr+ service
+- To provide and maintain the Chasr service
 - To display your profile to other users in your selected area
 - To calculate distances between you and other users
 - To enable messaging between matched users
@@ -32,7 +32,7 @@ Chasr+ ("we", "us", or "our") is committed to protecting your privacy. This Priv
 
 ## Location Data
 
-Chasr+ uses your device's GPS to provide location-based features:
+Chasr uses your device's GPS to provide location-based features:
 
 - **Live Location (optional):** When enabled, your real-time GPS position is used to show nearby users
 - **Approximate location:** Used when GPS is disabled to show relevant profiles
@@ -73,7 +73,7 @@ You have the right to:
 
 ## Children's Privacy
 
-Chasr+ is not intended for users under the age of 18. We do not knowingly collect data from minors.
+Chasr is not intended for users under the age of 18. We do not knowingly collect data from minors.
 
 ## Changes to This Policy
 
@@ -88,4 +88,4 @@ If you have questions about this Privacy Policy:
 
 ---
 
-*Chasr+ is built with love for the trans community. Your privacy and safety are our top priorities.* 💜
+*Chasr is built with love for the trans community. Your privacy and safety are our top priorities.* 💜

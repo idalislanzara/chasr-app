@@ -126,7 +126,7 @@ export default function Browse() {
   return (
     <div className="page browse-page">
       <header className="browse-header">
-        <h1 className="logo">chasr+</h1>
+        <h1 className="logo">chasr</h1>
         <div className="browse-header-actions">
           <button className="btn-filter" onClick={() => setShowFilters(!showFilters)}>
             <SlidersHorizontal size={16} />

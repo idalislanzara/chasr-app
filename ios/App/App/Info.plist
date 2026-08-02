@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Chasr+</string>
+	<string>Chasr</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -48,17 +48,17 @@
 
 	<!-- Privacy Permission Strings -->
 	<key>NSCameraUsageDescription</key>
-	<string>Chasr+ needs camera access to take profile photos</string>
+	<string>Chasr needs camera access to take profile photos</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Chasr+ needs photo library access to select profile photos</string>
+	<string>Chasr needs photo library access to select profile photos</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Chasr+ needs access to save photos</string>
+	<string>Chasr needs access to save photos</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Chasr+ uses your location to show people nearby and display distances</string>
+	<string>Chasr uses your location to show people nearby and display distances</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Chasr+ uses your location in the background to keep your position accurate for nearby users</string>
+	<string>Chasr uses your location in the background to keep your position accurate for nearby users</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Chasr+ uses your location to show people nearby</string>
+	<string>Chasr uses your location to show people nearby</string>
 
 	<!-- App Transport Security (allow HTTP for avatar API) -->
 	<key>NSAppTransportSecurity</key>
@@ -69,7 +69,7 @@
 
 	<!-- iOS 17+ privacy -->
 	<key>NSUserTrackingUsageDescription</key>
-	<string>Chasr+ would like permission to track your activity across other apps and websites to provide personalized ads</string>
+	<string>Chasr would like permission to track your activity across other apps and websites to provide personalized ads</string>
 
 	<!-- Supports Dark Mode -->
 	<key>UIUserInterfaceStyle</key>

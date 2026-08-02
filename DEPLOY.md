@@ -1,4 +1,4 @@
-# 🚀 Chasr+ — Deployment Guide
+# 🚀 Chasr — Deployment Guide
 
 ## Quick Reference
 
@@ -82,7 +82,7 @@ Output: `android/app/build/outputs/bundle/release/app-release.aab`
 
 ### 3.6 Upload to Play Console
 1. Go to [Play Console](https://play.google.com/console)
-2. Create app → Name: "Chasr+"
+2. Create app → Name: "Chasr"
 3. Go to **Production** → **Create new release**
 4. Upload the `.aab` file
 5. Fill in store listing (see `STORE_LISTING.md`)
@@ -135,7 +135,7 @@ In Xcode: **App** → **General** → **Identity**
 1. Go to [App Store Connect](https://appstoreconnect.apple.com)
 2. **My Apps → + → New App**
 3. Fill in:
-   - **Name:** Chasr+
+   - **Name:** Chasr
    - **Primary Language:** English
    - **Bundle ID:** (match your Xcode bundle ID)
    - **SKU:** chasr-ios-001

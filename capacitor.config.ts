@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.chasr.app',
-  appName: 'Chasr+',
+  appName: 'Chasr',
   webDir: 'dist',
   server: {
     androidScheme: 'https',
@@ -41,11 +41,11 @@ const config: CapacitorConfig = {
     preferredContentMode: 'mobile',
     // Allow HTTP loads for avatar images
     infoPlist: {
-      NSCameraUsageDescription: 'Chasr+ needs camera access to take profile photos',
-      NSPhotoLibraryUsageDescription: 'Chasr+ needs photo library access to select profile photos',
-      NSLocationWhenInUseUsageDescription: 'Chasr+ uses your location to show people nearby',
-      NSLocationAlwaysAndWhenInUseUsageDescription: 'Chasr+ uses your location to show people nearby',
-      NSLocationAlwaysUsageDescription: 'Chasr+ uses your location to show people nearby',
+      NSCameraUsageDescription: 'Chasr needs camera access to take profile photos',
+      NSPhotoLibraryUsageDescription: 'Chasr needs photo library access to select profile photos',
+      NSLocationWhenInUseUsageDescription: 'Chasr uses your location to show people nearby',
+      NSLocationAlwaysAndWhenInUseUsageDescription: 'Chasr uses your location to show people nearby',
+      NSLocationAlwaysUsageDescription: 'Chasr uses your location to show people nearby',
       NSAppTransportSecurity: {
         NSAllowsArbitraryLoads: true,
       },

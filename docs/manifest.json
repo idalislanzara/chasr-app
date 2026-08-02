@@ -1,7 +1,7 @@
 {
-  "name": "Chasr+ — Dating for the Trans Community",
-  "short_name": "Chasr+",
-  "description": "Find your people. Chasr+ is a dating and social app built for the trans community.",
+  "name": "Chasr — Dating for the Trans Community",
+  "short_name": "Chasr",
+  "description": "Find your people. Chasr is a dating and social app built for the trans community.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

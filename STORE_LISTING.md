@@ -36,7 +36,7 @@ Chasr+ is the dating and social app built for the trans community. Whether you'r
 • Discreet mode to hide your activity
 • Secure account protection
 
-Chasr+ is free to download and use. Upgrade to Plus or Premium for extra features.
+Chasr+ is free to download and use. Upgrade to Chasr+ for extra features.
 
 ## Keywords (App Store, comma-separated)
 dating,trans,transgender,LGBTQ,queer,community,social,chat,meet,relationship,pride,nonbinary,gay,lesbian,love,connection,friendship,nearby,local,map

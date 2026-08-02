@@ -125,7 +125,7 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-container">
         <div className="auth-hero">
-          <h1 className="auth-logo">chasr+</h1>
+          <h1 className="auth-logo">chasr</h1>
           <p className="auth-subtitle">
             {mode === 'register' ? 'Create your account' : 'Welcome back'}
           </p>

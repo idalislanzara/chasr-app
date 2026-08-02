@@ -99,7 +99,7 @@ export default function Profile() {
   const handleShare = async () => {
     const url = window.location.href;
     if (navigator.share) {
-      try { await navigator.share({ title: `Check out ${profile.name} on Chasr+`, url }); } catch {}
+      try { await navigator.share({ title: `Check out ${profile.name} on Chasr`, url }); } catch {}
     } else {
       navigator.clipboard.writeText(url);
     }
