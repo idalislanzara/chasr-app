@@ -111,7 +111,7 @@ export default function Register() {
       pronouns,
       identity,
       tagline: tagline.trim() || `Hey, I'm ${name}! 👋`,
-      bio: bio.trim() || `Just joined Chasr!`,
+      bio: bio.trim() || `Just joined Chasr Dating!`,
       photos: [],
       height,
       body_type,
@@ -392,7 +392,7 @@ export default function Register() {
                   <div className="wizard-done-icon">🎉</div>
                   <h2>You're all set!</h2>
                   <p className="wizard-hint">
-                    Welcome to Chasr, <strong>{name}</strong>!
+                    Welcome to Chasr Dating, <strong>{name}</strong>!
                     <br />Your profile is ready. Let's find your people.
                   </p>
 

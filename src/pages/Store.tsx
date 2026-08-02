@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import {
   Zap, Eye, Ghost, Star, Check, ChevronRight, Shield, Sparkles,
-  Globe, MessageCircle, Lock, Crown, X,
+  Globe, MessageCircle, Lock, Crown, X, Heart,
 } from 'lucide-react';
+
+interface Plan {
+  name: string; price: string; period: string; icon: React.ReactNode;
+  features: string[]; color: string; popular?: boolean; free?: boolean;
+}
 
 interface StoreItem {
   id: string;
@@ -75,7 +80,22 @@ const storeItems: StoreItem[] = [
   },
 ];
 
-const premiumPlans = [
+const premiumPlans: Plan[] = [
+  {
+    name: 'Chasr Dating',
+    price: 'Free',
+    period: 'free forever',
+    icon: <Heart size={20} />,
+    free: true,
+    features: [
+      'Browse people nearby',
+      'See who is around you',
+      'Chat with matches',
+      'Add favorites',
+      'Basic filters',
+    ],
+    color: '#22c55e',
+  },
   {
     name: 'Chasr+',
     price: '$9.99/mo',
@@ -153,7 +173,7 @@ export default function Store() {
                 className="btn-primary store-buy-btn"
                 style={{ background: plan.color }}
               >
-                Subscribe
+                {plan.free ? 'Current Plan' : 'Subscribe'}
               </button>
             </div>
           ))}

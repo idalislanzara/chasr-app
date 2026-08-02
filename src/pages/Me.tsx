@@ -251,7 +251,7 @@ export default function Me() {
       </button>
 
       <footer className="me-footer">
-        <p>Chasr v2.1 · Made with love for the trans community</p>
+        <p>Chasr Dating v2.1 · Made with love for the trans community</p>
         <p className="me-email">{user.email}</p>
       </footer>
     </div>

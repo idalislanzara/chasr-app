@@ -1,4 +1,4 @@
-# Chasr — Go Live Guide (Production)
+# Chasr Dating — Go Live Guide (Production)
 
 ## Current Live Demo
 - App (shared database): `https://wishlist-flame-treasure-receptor.trycloudflare.com`

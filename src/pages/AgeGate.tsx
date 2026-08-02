@@ -26,7 +26,7 @@ export default function AgeGate({ onConfirm }: AgeGateProps) {
       age--;
     }
     if (age < 18) {
-      setError('You must be at least 18 years old to use Chasr');
+      setError('You must be at least 18 years old to use Chasr Dating');
       return;
     }
     if (!agreed) {
@@ -50,7 +50,7 @@ export default function AgeGate({ onConfirm }: AgeGateProps) {
         </div>
 
         <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
-          Chasr is an adults-only platform. You must be <strong>18 years or older</strong> to create an account.
+          Chasr Dating is an adults-only platform. You must be <strong>18 years or older</strong> to create an account.
         </p>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -100,7 +100,7 @@ export default function AgeGate({ onConfirm }: AgeGateProps) {
         )}
 
         <button className="btn-primary auth-submit" onClick={handleSubmit}>
-          I Am 18+ — Enter Chasr
+          I Am 18+ — Enter Chasr Dating
         </button>
 
         <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, marginTop: 20 }}>

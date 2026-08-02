@@ -182,7 +182,7 @@ function LocationPrompt({ onAllow, onSkip }: { onAllow: () => void; onSkip: () =
         <div className="location-prompt-icon">📍</div>
         <h3>Enable Live Location</h3>
         <p>
-          Allow Chasr to use your device's GPS so people nearby can find you and you can see exact distances.
+          Allow Chasr Dating to use your device's GPS so people nearby can find you and you can see exact distances.
         </p>
         <div className="location-prompt-features">
           <div className="lp-feature">
