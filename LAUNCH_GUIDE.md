@@ -1,7 +1,7 @@
 # Chasr Dating — Go Live Guide (Production)
 
 ## Current Live Demo
-- App (shared database): `https://wishlist-flame-treasure-receptor.trycloudflare.com`
+- App (shared database): `https://duo-radios-feeds-filling.trycloudflare.com`
 - Backup frontend: `https://idalislanzara.github.io/chasr-app/`
 
 > ⚠️ The demo tunnel runs from a local machine. For the permanent launch, deploy to Render (below) — then the app never depends on anyone's laptop.
