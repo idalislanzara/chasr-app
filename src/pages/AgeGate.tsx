@@ -88,7 +88,7 @@ export default function AgeGate({ onConfirm }: AgeGateProps) {
             style={{ marginTop: 3, accentColor: 'var(--accent)' }}
           />
           <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            I confirm I am at least 18 years old and agree to the <strong style={{ color: 'var(--accent)' }}>Terms of Service</strong> and <strong style={{ color: 'var(--accent)' }}>Privacy Policy</strong>. I understand this app contains adult content.
+            I confirm I am at least 18 years old and agree to the <a href="./terms.html" target="_blank" rel="noopener" style={{ color: 'var(--accent)' }}>Terms of Service</a> and <a href="./privacy.html" target="_blank" rel="noopener" style={{ color: 'var(--accent)' }}>Privacy Policy</a>. I understand this app contains adult content.
           </span>
         </label>
 
