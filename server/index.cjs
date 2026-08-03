@@ -491,6 +491,8 @@ io.on('connection', (socket) => {
 
 // ── Serve static frontend in production ──
 app.use(express.static(path.join(__dirname, '../dist')));
+// Also serve under /chasr-app/ so GitHub Pages-style asset paths work on the tunnel
+app.use('/chasr-app', express.static(path.join(__dirname, '../dist')));
 app.get('/{*splat}', (req, res) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/socket.io')) return;
   res.sendFile(path.join(__dirname, '../dist/index.html'));
