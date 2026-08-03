@@ -101,6 +101,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_reports_target ON reports(target_id);
 `);
 
+// Migrations for existing databases
+(function migrate() {
+  const cols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
+  if (!cols.includes('premium_expires_at')) db.exec('ALTER TABLE users ADD COLUMN premium_expires_at INTEGER DEFAULT 0');
+  if (!cols.includes('invite_code')) db.exec("ALTER TABLE users ADD COLUMN invite_code TEXT DEFAULT ''");
+  if (!cols.includes('invited_by')) db.exec("ALTER TABLE users ADD COLUMN invited_by TEXT DEFAULT ''");
+})();
+
 // ── Express + Socket.io ──
 const app = express();
 const server = http.createServer(app);
@@ -138,13 +146,36 @@ function authMiddleware(req, res, next) {
   }
 }
 
+// ── Premium & Referrals ──
+const FREE_FAVORITES_PER_DAY = 30;
+const REFERRAL_PREMIUM_DAYS = 7;
+
+function makeInviteCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function isPremium(user) {
+  return !!user.premium_expires_at && Number(user.premium_expires_at) > Date.now();
+}
+
+function grantPremium(userId, days) {
+  const user = db.prepare('SELECT premium_expires_at FROM users WHERE id = ?').get(userId);
+  if (!user) return;
+  const base = Math.max(Date.now(), user.premium_expires_at || 0);
+  const until = base + days * 24 * 60 * 60 * 1000;
+  db.prepare('UPDATE users SET premium_expires_at = ? WHERE id = ?').run(until, userId);
+}
+
 // ── Health ──
 app.get('/api/health', (req, res) => res.json({ ok: true, uptime: Math.floor(process.uptime()) }));
 
 // ── Auth Routes ──
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, inviteCode } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
     if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
@@ -155,15 +186,70 @@ app.post('/api/auth/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const now = Date.now();
 
-    db.prepare(`INSERT INTO users (id, email, password_hash, joined_at, last_active) VALUES (?, ?, ?, ?, ?)`)
-      .run(id, email.toLowerCase(), passwordHash, now, now);
+    db.prepare('INSERT INTO users (id, email, password_hash, joined_at, last_active, invite_code, invited_by) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(id, email.toLowerCase(), passwordHash, now, now, makeInviteCode(), '');
+
+    // Referral: valid invite code grants both sides a free Chasr+ trial
+    if (inviteCode && typeof inviteCode === 'string') {
+      const inviter = db.prepare('SELECT id, invite_code FROM users WHERE invite_code = ? AND id != ?')
+        .get(inviteCode.trim().toUpperCase(), id);
+      if (inviter) {
+        db.prepare('UPDATE users SET invited_by = ? WHERE id = ?').run(inviter.id, id);
+        grantPremium(inviter.id, REFERRAL_PREMIUM_DAYS);
+        grantPremium(id, REFERRAL_PREMIUM_DAYS);
+      }
+    }
 
     const token = jwt.sign({ userId: id }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ token, user: { id, email: email.toLowerCase(), name: '', age: 18 } });
+    const fresh = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    const { password_hash, ...safeUser } = fresh;
+    res.json({ token, user: safeUser });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+// ── Premium Routes ──
+app.get('/api/premium', authMiddleware, (req, res) => {
+  const user = db.prepare('SELECT id, premium_expires_at, invite_code, invited_by FROM users WHERE id = ?').get(req.userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({
+    premium: isPremium(user),
+    premium_expires_at: user.premium_expires_at || 0,
+    invite_code: user.invite_code || '',
+    invited_by: user.invited_by || '',
+    invite_url: `https://chasr-app-1.onrender.com/?invite=${user.invite_code || ''}`,
+  });
+});
+
+// Who liked you (premium feature — free users see the count only)
+app.get('/api/likes', authMiddleware, (req, res) => {
+  const me = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+  if (!me) return res.status(404).json({ error: 'User not found' });
+  const blocked = db.prepare('SELECT target_id FROM blocks WHERE user_id = ?').all(req.userId).map(r => r.target_id);
+  const blockedBy = db.prepare('SELECT user_id FROM blocks WHERE target_id = ?').all(req.userId).map(r => r.user_id);
+  const excluded = [...new Set([...blocked, ...blockedBy, req.userId])];
+
+  const likers = db.prepare(`
+    SELECT u.*, f.created_at as liked_at FROM favorites f
+    JOIN users u ON f.user_id = u.id
+    WHERE f.target_id = ? AND f.user_id NOT IN (${excluded.map(() => '?').join(',')})
+    ORDER BY f.created_at DESC
+  `).all(req.userId, ...excluded);
+
+  const myFavIds = db.prepare('SELECT target_id FROM favorites WHERE user_id = ?').all(req.userId).map(r => r.target_id);
+  const premium = isPremium(me);
+
+  const safe = likers.map(({ password_hash, lat: _lat, lng: _lng, ...u }) => ({
+    ...u,
+    photos: JSON.parse(u.photos || '[]'),
+    looking_for: JSON.parse(u.looking_for || '[]'),
+    interests: JSON.parse(u.interests || '[]'),
+    isMatch: myFavIds.includes(u.id),
+  }));
+
+  res.json({ locked: !premium, count: safe.length, profiles: premium ? safe : [] });
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -347,6 +433,17 @@ app.get('/api/nearby', authMiddleware, (req, res) => {
 app.post('/api/favorites/:targetId', authMiddleware, (req, res) => {
   const { targetId } = req.params;
   const now = Date.now();
+
+  const me = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+  if (!me) return res.status(404).json({ error: 'User not found' });
+  if (!isPremium(me)) {
+    const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+    const todayCount = db.prepare('SELECT COUNT(*) as c FROM favorites WHERE user_id = ? AND created_at >= ?')
+      .get(req.userId, startOfDay.getTime()).c;
+    if (todayCount >= FREE_FAVORITES_PER_DAY) {
+      return res.status(403).json({ error: 'Daily favorite limit reached. Upgrade to Chasr+ for unlimited likes.' });
+    }
+  }
 
   // Check if already favorited
   const existing = db.prepare('SELECT * FROM favorites WHERE user_id = ? AND target_id = ?').get(req.userId, targetId);

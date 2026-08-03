@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../api';
 import {
   Zap, Eye, Ghost, Star, Check, ChevronRight, Shield, Sparkles,
   Globe, MessageCircle, Lock, Crown, X, Heart,
@@ -129,8 +131,19 @@ const premiumPlans: Plan[] = [
 ];
 
 export default function Store() {
+  const navigate = useNavigate();
   const [selectedItem, setSelectedItem] = useState<StoreItem | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [premium, setPremium] = useState(false);
+  const [premiumExpires, setPremiumExpires] = useState(0);
+  const [payNote, setPayNote] = useState(false);
+
+  useEffect(() => {
+    api.getPremium().then(d => {
+      setPremium(!!d.premium);
+      setPremiumExpires(d.premium_expires_at || 0);
+    }).catch(() => {});
+  }, []);
 
   return (
     <div className="page store-page">
@@ -138,6 +151,18 @@ export default function Store() {
         <h1>Store</h1>
         <Shield size={20} className="store-secure-icon" />
       </header>
+
+      {premium && (
+        <div className="premium-active-banner">
+          <Crown size={18} />
+          <span>Chasr+ active{premiumExpires > 0 ? ` until ${new Date(premiumExpires).toLocaleDateString()}` : ''}</span>
+        </div>
+      )}
+      <button className="liked-you-link" onClick={() => navigate('/favorites')}>
+        <Eye size={18} />
+        See who liked you
+        <ChevronRight size={18} />
+      </button>
 
       {/* Premium Plans */}
       <section className="store-section">
@@ -172,8 +197,12 @@ export default function Store() {
               <button
                 className="btn-primary store-buy-btn"
                 style={{ background: plan.color }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!plan.free) setPayNote(true);
+                }}
               >
-                {plan.free ? 'Current Plan' : 'Subscribe'}
+                {plan.free ? (premium ? 'Active' : 'Current Plan') : (premium ? 'Subscribed' : 'Subscribe')}
               </button>
             </div>
           ))}
@@ -241,6 +270,27 @@ export default function Store() {
               Buy for {selectedItem.price}
             </button>
             <p className="store-modal-note">One-time purchase. Cancel anytime.</p>
+          </div>
+        </div>
+      )}
+
+      {payNote && (
+        <div className="store-modal-overlay" onClick={() => setPayNote(false)}>
+          <div className="store-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="store-modal-close" onClick={() => setPayNote(false)}>
+              <X size={20} />
+            </button>
+            <div className="store-modal-icon" style={{ color: '#d946ef', background: '#d946ef15' }}>
+              <Crown size={24} />
+            </div>
+            <h2>Chasr+ payments are almost here</h2>
+            <p className="store-modal-desc">
+              Subscriptions go live the moment Chasr launches on Google Play — that's where secure billing is turned on.
+              Until then, you can get Chasr+ free for 7 days by inviting a friend from your profile.
+            </p>
+            <button className="btn-primary store-modal-buy" style={{ background: '#d946ef' }} onClick={() => { setPayNote(false); navigate('/me'); }}>
+              Get 7 days free
+            </button>
           </div>
         </div>
       )}

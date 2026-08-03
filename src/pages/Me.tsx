@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Camera, ShieldCheck, MapPin, Radio, RadioOff, LogOut, Trash2,
-  Edit3, ChevronRight, Loader2, X, Check
+  Edit3, ChevronRight, Loader2, X, Check, Crown, Gift
 } from 'lucide-react';
 import { useApp } from '../store';
 import { useAuth } from '../authStore';
@@ -18,6 +18,9 @@ export default function Me() {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [favCount, setFavCount] = useState(0);
+  const [premium, setPremium] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteUrl, setInviteUrl] = useState('');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -36,6 +39,11 @@ export default function Me() {
 
   useEffect(() => {
     api.getFavorites().then(d => setFavCount(d.favorites?.length || 0)).catch(() => {});
+    api.getPremium().then(d => {
+      setPremium(!!d.premium);
+      setInviteCode(d.invite_code || '');
+      setInviteUrl(d.invite_url || '');
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -207,6 +215,36 @@ export default function Me() {
         <p className="me-pronouns">{user.pronouns} · {user.identity}</p>
         {user.verified && <span className="me-verified"><ShieldCheck size={14} /> Verified</span>}
       </header>
+
+      <div className="me-premium-row">
+        {premium ? (
+          <span className="me-premium-badge active"><Crown size={14} /> Chasr+ Active</span>
+        ) : (
+          <span className="me-premium-badge" onClick={() => navigate('/store')}><Crown size={14} /> Go Chasr+</span>
+        )}
+        <span className="me-favorites-link" onClick={() => navigate('/favorites')}>Likes <ChevronRight size={14} /></span>
+      </div>
+
+      <div className="me-section invite-section">
+        <h3><Gift size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Invite friends — get Chasr+ free</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10 }}>
+          You and your friend each get 7 days of Chasr+ when they join with your code.
+        </p>
+        <div className="invite-code-row">
+          <code className="invite-code">{inviteCode || '••••••••'}</code>
+          <button
+            className="btn-primary"
+            style={{ padding: '10px 14px', fontSize: 13, flexShrink: 0 }}
+            onClick={async () => {
+              if (!inviteUrl) return;
+              try {
+                if (navigator.share) { await navigator.share({ title: 'Join me on Chasr Dating 💜', url: inviteUrl }); }
+                else { await navigator.clipboard.writeText(inviteUrl); alert('Invite link copied!'); }
+              } catch {}
+            }}
+          >Share</button>
+        </div>
+      </div>
 
       <button className="btn-edit-profile" onClick={() => setEditing(true)}>
         <Edit3 size={16} />

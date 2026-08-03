@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../authStore';
@@ -51,6 +52,8 @@ function PasswordStrengthBar({ strength }: { strength: PasswordStrength | null }
 export default function Login() {
   const { login, register, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteCode = searchParams.get('invite') || '';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -81,7 +84,7 @@ export default function Login() {
         setError('Password must be at least 6 characters');
         return;
       }
-      const result = await register(email.trim(), password);
+      const result = await register(email.trim(), password, inviteCode || undefined);
       if (result.error) {
         setError(result.error);
       } else {

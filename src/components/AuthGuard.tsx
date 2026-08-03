@@ -1,8 +1,9 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../authStore';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -16,12 +17,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={{ pathname: '/login', search: location.search }} replace />;
   }
 
   // Check if profile is incomplete (no name = just registered)
   if (!user.name) {
-    return <Navigate to="/register" replace />;
+    return <Navigate to={{ pathname: '/register', search: location.search }} replace />;
   }
 
   return <>{children}</>;

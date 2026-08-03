@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, ArrowLeft,
   User, Heart, Check, Camera, AlertTriangle,
@@ -26,6 +26,8 @@ type Step = typeof STEPS[number];
 export default function Register() {
   const { user, register, completeProfile, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteCode = searchParams.get('invite') || '';
 
   // If user is logged in but has no name, start at basics (profile wizard)
   const [socialNote, setSocialNote] = useState('');
@@ -96,7 +98,7 @@ export default function Register() {
       setError('Password must be at least 6 characters');
       return;
     }
-    const result = await register(email.trim(), password);
+    const result = await register(email.trim(), password, inviteCode || undefined);
     if (result.error) {
       setError(result.error);
     } else {

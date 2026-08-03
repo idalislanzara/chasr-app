@@ -214,6 +214,31 @@ export function localBlock(targetId: string) {
   return { ok: true };
 }
 
+export function localGetPremium() {
+  const userId = localStorage.getItem('chasr_user_id')!;
+  const users = dbGet<Array<Record<string, unknown>>>('users', []);
+  const me = users.find(u => u.id === userId) || {};
+  const premiumExpires = Number((me as any).premium_expires_at || 0);
+  const inviteCode = String((me as any).invite_code || '');
+  return {
+    premium: premiumExpires > Date.now(),
+    premium_expires_at: premiumExpires,
+    invite_code: inviteCode,
+    invited_by: String((me as any).invited_by || ''),
+    invite_url: `https://chasr-app-1.onrender.com/?invite=${inviteCode}`,
+  };
+}
+
+export function localGetLikes() {
+  const userId = localStorage.getItem('chasr_user_id')!;
+  const favorites = dbGet<Array<{ user_id: string; target_id: string }>>('favorites', []);
+  const users = dbGet<Array<Record<string, unknown> & { id: string }>>('users', []);
+  const likerIds = favorites.filter(f => f.target_id === userId).map(f => f.user_id);
+  const profiles = users.filter(u => likerIds.includes(u.id)).map(u => ({ ...u, photos: JSON.parse(String(u.photos || '[]')) }));
+  const premium = localGetPremium().premium;
+  return { locked: !premium, count: profiles.length, profiles: premium ? profiles : [] };
+}
+
 export function localReport(targetId: string, reason: string, details = '') {
   const userId = localStorage.getItem('chasr_user_id')!;
   const reports = dbGet<Array<{ reporter_id: string; target_id: string; reason: string; details: string; created_at: number }>>('reports', []);

@@ -33,7 +33,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ error?: string }>;
-  register: (email: string, password: string) => Promise<{ error?: string }>;
+  register: (email: string, password: string, inviteCode?: string) => Promise<{ error?: string }>;
   completeProfile: (profile: Partial<AuthUser>) => Promise<void>;
   logout: () => void;
   updateProfile: (updates: Partial<AuthUser>) => Promise<void>;
@@ -104,10 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (email: string, password: string) => {
+  const register = useCallback(async (email: string, password: string, inviteCode?: string) => {
     setState(s => ({ ...s, loading: true }));
     try {
-      const data = await api.register(email, password);
+      const data = await api.register(email, password, inviteCode);
       localStorage.setItem('chasr_token', data.token);
       const user = mapUser(data.user);
       localStorage.setItem('chasr_user_id', user.id);

@@ -41,9 +41,19 @@ async function remoteRequest(path: string, options: RequestInit = {}) {
 }
 
 export const api = {
-  register: async (email: string, password: string) => {
-    if (await checkBackend()) return remoteRequest('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+  register: async (email: string, password: string, inviteCode?: string) => {
+    if (await checkBackend()) return remoteRequest('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password, inviteCode }) });
     return storage.localRegister(email, password);
+  },
+
+  getPremium: async () => {
+    if (await checkBackend()) return remoteRequest('/api/premium');
+    return storage.localGetPremium();
+  },
+
+  getLikes: async () => {
+    if (await checkBackend()) return remoteRequest('/api/likes');
+    return storage.localGetLikes();
   },
 
   login: async (email: string, password: string) => {
