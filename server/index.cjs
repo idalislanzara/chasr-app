@@ -184,10 +184,28 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
   res.json(safeUser);
 });
 
+app.delete('/api/auth/me', authMiddleware, (req, res) => {
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM favorites WHERE user_id = ? OR target_id = ?').run(req.userId, req.userId);
+    db.prepare('DELETE FROM blocks WHERE user_id = ? OR target_id = ?').run(req.userId, req.userId);
+    db.prepare('DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE user1_id = ? OR user2_id = ?)').run(req.userId, req.userId);
+    db.prepare('DELETE FROM chats WHERE user1_id = ? OR user2_id = ?').run(req.userId, req.userId);
+    db.prepare('DELETE FROM users WHERE id = ?').run(req.userId);
+  });
+  tx();
+  res.json({ ok: true });
+});
+
 app.put('/api/profile', authMiddleware, (req, res) => {
   const { name, age, pronouns, identity, tagline, bio, height, body_type, ethnicity, looking_for, interests, lat, lng, location_sharing } = req.body;
   const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
+
+  if (age !== undefined && (!Number.isInteger(age) || age < 18)) {
+    return res.status(400).json({ error: 'You must be 18 or older to use Chasr' });
+  }
 
   const updates = [];
   const values = [];

@@ -9,3 +9,6 @@ watchdog.sh
 *.keystore
 keystore.pass
 keystore.properties
+*.db-shm
+*.db-wal
+android/.kotlin/
