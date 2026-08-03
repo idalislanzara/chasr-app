@@ -4,3 +4,8 @@ server/chasr.db
 .env
 .DS_Store
 watchdog.sh
+
+# Chasr release signing
+*.keystore
+keystore.pass
+keystore.properties

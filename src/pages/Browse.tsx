@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, MapPin, Navigation, Loader2, Heart, MessageCircle, SlidersHorizontal } from 'lucide-react';
+import { ShieldCheck, MapPin, Navigation, Loader2, Heart, MessageCircle, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { api } from '../api';
 import type { UserProfile } from '../types';
 
@@ -128,6 +128,9 @@ export default function Browse() {
       <header className="browse-header">
         <h1 className="logo">chasr</h1>
         <div className="browse-header-actions">
+          <button className="btn-store-pill" onClick={() => navigate('/store')}>
+            <Sparkles size={14} /> Chasr+
+          </button>
           <button className="btn-filter" onClick={() => setShowFilters(!showFilters)}>
             <SlidersHorizontal size={16} />
           </button>

@@ -16,11 +16,10 @@ android {
     }
     signingConfigs {
         release {
-            // TODO: Replace with your keystore path
-            // storeFile file('../chasr-release.keystore')
-            // storePassword System.getenv("KEYSTORE_PASSWORD") ?: ''
-            // keyAlias 'chasr'
-            // keyPassword System.getenv("KEY_PASSWORD") ?: ''
+            storeFile file('../chasr-release.keystore')
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: ''
+            keyAlias 'chasr'
+            keyPassword System.getenv("KEY_PASSWORD") ?: ''
         }
     }
     buildTypes {
@@ -28,8 +27,7 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // TODO: Uncomment when signing config is set up
-            // signingConfig signingConfigs.release
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {
