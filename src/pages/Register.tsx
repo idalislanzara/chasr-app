@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, ArrowLeft,
-  User, Heart, Check,
+  User, Heart, Check, Camera, AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../authStore';
+import { api } from '../api';
 
 const PRONOUNS_OPTIONS = ['she/her', 'he/him', 'they/them', 'ze/zir', 'she/they', 'he/they', 'any pronouns', 'other'];
 const IDENTITY_OPTIONS = ['Trans Woman', 'Trans Man', 'Non-Binary', 'Genderqueer', 'Genderfluid', 'Agender', 'Two-Spirit', 'Questioning', 'Other'];
@@ -51,6 +52,28 @@ export default function Register() {
   const [interests, setInterests] = useState<string[]>(user?.interests || []);
   const [tagline, setTagline] = useState(user?.tagline || '');
   const [bio, setBio] = useState(user?.bio || '');
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setPhotoUploading(true);
+    setPhotoError('');
+    try {
+      const result = await api.uploadPhotos(Array.from(files));
+      if (result.photos) {
+        setPhotos(result.photos.slice(0, 1));
+      }
+    } catch {
+      setPhotoError('Photo upload failed — try a smaller image (under 5MB).');
+    } finally {
+      setPhotoUploading(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
 
   // If user finishes profile and gets redirected here, go to home
   useEffect(() => {
@@ -113,7 +136,7 @@ export default function Register() {
       identity,
       tagline: tagline.trim() || `Hey, I'm ${name}! 👋`,
       bio: bio.trim() || `Just joined Chasr Dating!`,
-      photos: [],
+      photos,
       height,
       body_type,
       ethnicity,
@@ -397,6 +420,30 @@ export default function Register() {
                     Welcome to Chasr Dating, <strong>{name}</strong>!
                     <br />Your profile is ready. Let's find your people.
                   </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, margin: '18px 0' }}>
+                    <div
+                      onClick={() => photoInputRef.current?.click()}
+                      style={{ width: 96, height: 96, borderRadius: '50%', overflow: 'hidden', border: '2px dashed var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'var(--bg-card)' }}
+                    >
+                      {photoUploading ? (
+                        <Loader2 size={28} className="spin" style={{ color: 'var(--accent)' }} />
+                      ) : photos.length > 0 ? (
+                        <img src={photos[0]} alt="Your photo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <Camera size={28} style={{ color: 'var(--accent)' }} />
+                      )}
+                    </div>
+                    <button type="button" className="btn-secondary" onClick={() => photoInputRef.current?.click()} disabled={photoUploading}>
+                      {photos.length > 0 ? 'Change photo' : 'Add a photo'}
+                    </button>
+                    <input ref={photoInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoUpload} />
+                    {photoError && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#f87171', fontSize: 12 }}>
+                        <AlertTriangle size={14} /> {photoError}
+                      </span>
+                    )}
+                  </div>
 
                   <button className="btn-primary auth-submit" onClick={finishProfile}>
                     Start Browsing

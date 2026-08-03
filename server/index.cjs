@@ -97,6 +97,7 @@ const io = new Server(server, {
 });
 
 app.use(cors());
+app.set('trust proxy', true);
 app.use(express.json({ limit: '10mb' }));
 
 // Serve uploaded photos
@@ -217,7 +218,8 @@ app.put('/api/profile', authMiddleware, (req, res) => {
 
 // ── Upload Photos ──
 app.post('/api/photos', authMiddleware, upload.array('photos', 9), (req, res) => {
-  const urls = req.files.map(f => `/uploads/${f.filename}`);
+  const base = `${req.protocol}://${req.get('host')}`;
+  const urls = req.files.map(f => `${base}/uploads/${f.filename}`);
   const user = db.prepare('SELECT photos FROM users WHERE id = ?').get(req.userId);
   const existing = JSON.parse(user.photos || '[]');
   const updated = [...existing, ...urls].slice(0, 9);
