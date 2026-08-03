@@ -101,24 +101,9 @@ export default function Login() {
     }
   };
 
-  const handleSocialLogin = async (provider: 'apple' | 'google') => {
-    setError('');
-    const socialEmail = `user_${provider}@chasr.app`;
-    const socialPw = 'Chasr#Social2026!';
-
-    const loginResult = await login(socialEmail, socialPw);
-    if (loginResult.error === 'No account found with this email') {
-      const regResult = await register(socialEmail, socialPw);
-      if (regResult.error) {
-        setError(regResult.error);
-      } else {
-        navigate('/register', { replace: true });
-      }
-    } else if (loginResult.error) {
-      setError(loginResult.error);
-    } else {
-      navigate('/', { replace: true });
-    }
+  const handleSocialLogin = async (_provider: 'apple' | 'google') => {
+    // Real Apple/Google sign-in needs developer accounts; keep buttons visible but honest.
+    setError('Apple and Google sign-in are coming soon — use email for now.');
   };
 
   return (
@@ -132,13 +117,13 @@ export default function Login() {
         </div>
 
         <div className="social-buttons">
-          <button className="btn-social" onClick={() => handleSocialLogin('apple')} disabled={loading}>
+          <button className="btn-social" onClick={() => handleSocialLogin('apple')}>
             <AppleIcon />
-            <span>Apple</span>
+            <span>Apple <small style={{ opacity: 0.6 }}>· coming soon</small></span>
           </button>
-          <button className="btn-social" onClick={() => handleSocialLogin('google')} disabled={loading}>
+          <button className="btn-social" onClick={() => handleSocialLogin('google')}>
             <GoogleIcon />
-            <span>Google</span>
+            <span>Google <small style={{ opacity: 0.6 }}>· coming soon</small></span>
           </button>
         </div>
 
