@@ -49,9 +49,9 @@ dating,trans,transgender,LGBTQ,queer,community,social,chat,meet,relationship,pri
 **Age Rating:** 17+ (Infrequent Mature/Suggestive Themes)
 
 ## Contact Information
-- **Support URL:** https://chasr.app/support
-- **Privacy Policy URL:** https://chasr.app/privacy
-- **Marketing URL:** https://chasr.app
+- **Support URL:** https://chasr-app-1.onrender.com/
+- **Privacy Policy URL:** https://chasr-app-1.onrender.com/privacy
+- **Marketing URL:** https://chasr-app-1.onrender.com/
 
 ## What's New (v1.0.0)
 Welcome to Chasr Dating! The dating app built for the trans community.
