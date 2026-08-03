@@ -94,6 +94,11 @@ export const api = {
     return storage.localBlock(targetId);
   },
 
+  report: async (targetId: string, reason: string, details?: string) => {
+    if (await checkBackend()) return remoteRequest('/api/reports', { method: 'POST', body: JSON.stringify({ targetId, reason, details }) });
+    return storage.localReport(targetId, reason, details);
+  },
+
   getChats: async () => {
     if (await checkBackend()) return remoteRequest('/api/chats');
     return storage.localGetChats();
@@ -114,9 +119,9 @@ export const api = {
     return storage.localGetOnline();
   },
 
-  seed: async () => {
-    if (await checkBackend()) return remoteRequest('/api/seed', { method: 'POST' });
-    return storage.localSeed();
+  deleteAccount: async () => {
+    if (await checkBackend()) return remoteRequest('/api/auth/me', { method: 'DELETE' });
+    return storage.localDeleteAccount();
   },
 
   uploadPhotos: async (files: File[]) => {

@@ -87,6 +87,18 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_chats_user1 ON chats(user1_id);
   CREATE INDEX IF NOT EXISTS idx_chats_user2 ON chats(user2_id);
   CREATE INDEX IF NOT EXISTS idx_users_location ON users(lat, lng);
+
+  CREATE TABLE IF NOT EXISTS reports (
+    id TEXT PRIMARY KEY,
+    reporter_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    details TEXT DEFAULT '',
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (reporter_id) REFERENCES users(id),
+    FOREIGN KEY (target_id) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_reports_target ON reports(target_id);
 `);
 
 // ── Express + Socket.io ──
@@ -273,12 +285,22 @@ app.get('/api/profiles', authMiddleware, (req, res) => {
   const profiles = db.prepare(`SELECT * FROM users WHERE ${where} ORDER BY last_active DESC LIMIT ? OFFSET ?`)
     .all(...params, Number(limit), Number(offset));
 
-  const safe = profiles.map(({ password_hash, ...p }) => ({
-    ...p,
-    photos: JSON.parse(p.photos || '[]'),
-    looking_for: JSON.parse(p.looking_for || '[]'),
-    interests: JSON.parse(p.interests || '[]'),
-  }));
+  const reqLat = parseFloat(lat);
+  const reqLng = parseFloat(lng);
+
+  const safe = profiles.map(({ password_hash, lat: _lat, lng: _lng, ...p }) => {
+    const out = {
+      ...p,
+      photos: JSON.parse(p.photos || '[]'),
+      looking_for: JSON.parse(p.looking_for || '[]'),
+      interests: JSON.parse(p.interests || '[]'),
+    };
+    if (!Number.isNaN(reqLat) && !Number.isNaN(reqLng)) {
+      out.distance_km = haversineKm(reqLat, reqLng, _lat, _lng);
+      out.distance = formatDistance(out.distance_km);
+    }
+    return out;
+  });
 
   res.json({ profiles: safe, total: profiles.length });
 });
@@ -309,12 +331,13 @@ app.get('/api/nearby', authMiddleware, (req, res) => {
   `).all(userLat, userLat, userLng, userLng, ...allBlocked,
     userLat - latDelta, userLat + latDelta, userLng - lngDelta, userLng + lngDelta);
 
-  const safe = profiles.map(({ password_hash, dist_sq, ...p }) => ({
+  const safe = profiles.map(({ password_hash, dist_sq, lat: _lat, lng: _lng, ...p }) => ({
     ...p,
     photos: JSON.parse(p.photos || '[]'),
     looking_for: JSON.parse(p.looking_for || '[]'),
     interests: JSON.parse(p.interests || '[]'),
     distance_km: Math.sqrt(dist_sq) * 111,
+    distance: formatDistance(Math.sqrt(dist_sq) * 111),
   }));
 
   res.json({ profiles: safe });
@@ -377,7 +400,7 @@ app.get('/api/favorites', authMiddleware, (req, res) => {
   const me = db.prepare('SELECT id FROM users WHERE id = ?').get(req.userId);
   const myFavIds = db.prepare('SELECT target_id FROM favorites WHERE user_id = ?').all(req.userId).map(r => r.target_id);
 
-  const safe = favs.map(({ password_hash, ...u }) => ({
+  const safe = favs.map(({ password_hash, lat: _lat, lng: _lng, ...u }) => ({
     ...u,
     photos: JSON.parse(u.photos || '[]'),
     looking_for: JSON.parse(u.looking_for || '[]'),
@@ -395,6 +418,18 @@ app.post('/api/blocks/:targetId', authMiddleware, (req, res) => {
   res.json({ status: 'blocked' });
 });
 
+// ── Reports ──
+app.post('/api/reports', authMiddleware, (req, res) => {
+  const { targetId, reason, details } = req.body;
+  if (!targetId || !reason) return res.status(400).json({ error: 'targetId and reason are required' });
+  if (targetId === req.userId) return res.status(400).json({ error: 'You cannot report yourself' });
+  const target = db.prepare('SELECT id FROM users WHERE id = ?').get(targetId);
+  if (!target) return res.status(404).json({ error: 'User not found' });
+  db.prepare('INSERT INTO reports (id, reporter_id, target_id, reason, details, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run('rep_' + uuidv4().slice(0, 12), req.userId, targetId, String(reason).slice(0, 200), String(details || '').slice(0, 2000), Date.now());
+  res.json({ ok: true });
+});
+
 // ── Chats ──
 app.get('/api/chats', authMiddleware, (req, res) => {
   const chats = db.prepare(`
@@ -405,7 +440,13 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     ORDER BY c.last_message_at DESC
   `).all(req.userId, req.userId, req.userId);
 
-  const result = chats.map(chat => {
+  const blockedChats = db.prepare('SELECT target_id FROM blocks WHERE user_id = ?').all(req.userId).map(r => r.target_id);
+  const blockedByChats = db.prepare('SELECT user_id FROM blocks WHERE target_id = ?').all(req.userId).map(r => r.user_id);
+  const chatBlockedSet = new Set([...blockedChats, ...blockedByChats]);
+
+  const result = chats
+    .filter(chat => !chatBlockedSet.has(chat.user1_id === req.userId ? chat.user2_id : chat.user1_id))
+    .map(chat => {
     const other = db.prepare('SELECT id, name, age, photos, pronouns, identity, last_active FROM users WHERE id = ?')
       .get(chat.other_id);
     const unread = db.prepare('SELECT COUNT(*) as count FROM messages WHERE chat_id = ? AND sender_id != ? AND read = 0')
@@ -417,7 +458,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       other_user: other ? { ...other, photos: JSON.parse(other.photos || '[]') } : null,
       unread_count: unread.count,
     };
-  });
+    });
 
   res.json({ chats: result });
 });
@@ -427,6 +468,10 @@ app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const chat = db.prepare('SELECT * FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)')
     .get(req.params.chatId, req.userId, req.userId);
   if (!chat) return res.status(404).json({ error: 'Chat not found' });
+  const otherUserId = chat.user1_id === req.userId ? chat.user2_id : chat.user1_id;
+  const isBlocked = db.prepare('SELECT 1 FROM blocks WHERE (user_id = ? AND target_id = ?) OR (user_id = ? AND target_id = ?)')
+    .get(req.userId, otherUserId, otherUserId, req.userId);
+  if (isBlocked) return res.status(403).json({ error: 'Conversation unavailable' });
 
   // Mark as read
   db.prepare('UPDATE messages SET read = 1 WHERE chat_id = ? AND sender_id != ?').run(req.params.chatId, req.userId);
@@ -444,6 +489,10 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const chat = db.prepare('SELECT * FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)')
     .get(req.params.chatId, req.userId, req.userId);
   if (!chat) return res.status(404).json({ error: 'Chat not found' });
+  const otherUserId = chat.user1_id === req.userId ? chat.user2_id : chat.user1_id;
+  const isBlocked = db.prepare('SELECT 1 FROM blocks WHERE (user_id = ? AND target_id = ?) OR (user_id = ? AND target_id = ?)')
+    .get(req.userId, otherUserId, otherUserId, req.userId);
+  if (isBlocked) return res.status(403).json({ error: 'Unable to send message' });
 
   const msgId = 'msg_' + uuidv4().slice(0, 12);
   const now = Date.now();
@@ -472,7 +521,7 @@ app.get('/api/online', authMiddleware, (req, res) => {
   const online = db.prepare(`SELECT * FROM users WHERE last_active > ? AND id NOT IN (${allBlocked.map(() => '?').join(',')}) ORDER BY last_active DESC`)
     .all(fiveMinAgo, ...allBlocked);
 
-  const safe = online.map(({ password_hash, ...u }) => ({
+  const safe = online.map(({ password_hash, lat: _lat, lng: _lng, ...u }) => ({
     ...u,
     photos: JSON.parse(u.photos || '[]'),
     looking_for: JSON.parse(u.looking_for || '[]'),
@@ -517,6 +566,22 @@ app.get('/{*splat}', (req, res) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/socket.io')) return;
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
+
+// ── Distance helpers (never expose exact coordinates to other users) ──
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+function formatDistance(km) {
+  if (km === undefined || km === null || isNaN(km)) return 'Nearby';
+  if (km < 1) return `${Math.max(1, Math.round(km * 1000))} m`;
+  if (km < 100) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+}
 
 // ── Start ──
 server.listen(PORT, '0.0.0.0', () => {

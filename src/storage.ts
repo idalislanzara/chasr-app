@@ -214,6 +214,14 @@ export function localBlock(targetId: string) {
   return { ok: true };
 }
 
+export function localReport(targetId: string, reason: string, details = '') {
+  const userId = localStorage.getItem('chasr_user_id')!;
+  const reports = dbGet<Array<{ reporter_id: string; target_id: string; reason: string; details: string; created_at: number }>>('reports', []);
+  reports.push({ reporter_id: userId, target_id: targetId, reason, details, created_at: Date.now() });
+  dbSet('reports', reports);
+  return { ok: true };
+}
+
 // ── Messages ──
 
 interface StoredMessage {
@@ -331,8 +339,15 @@ export function localGetOnline() {
 
 // ── Seed ──
 
-export function localSeed() {
-  return { ok: true, count: 0 };
+export function localDeleteAccount() {
+  const userId = localStorage.getItem('chasr_user_id');
+  if (!userId) return { ok: true };
+  let users = dbGet<StoredUser[]>('users', []);
+  users = users.filter(u => u.id !== userId);
+  dbSet('users', users);
+  localStorage.removeItem('chasr_token');
+  localStorage.removeItem('chasr_user_id');
+  return { ok: true };
 }
 
 // ── Photo upload (data URL based) ──

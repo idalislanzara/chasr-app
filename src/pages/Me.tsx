@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Camera, ShieldCheck, MapPin, Radio, RadioOff, LogOut,
+  Camera, ShieldCheck, MapPin, Radio, RadioOff, LogOut, Trash2,
   Edit3, ChevronRight, Loader2, X, Check
 } from 'lucide-react';
 import { useApp } from '../store';
@@ -56,6 +56,17 @@ export default function Me() {
     if (confirm('Are you sure you want to log out?')) {
       logout();
       navigate('/login', { replace: true });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!confirm('Delete your account permanently? Your profile, photos, matches and chats will be removed. This cannot be undone.')) return;
+    try {
+      await api.deleteAccount();
+      logout();
+      navigate('/login', { replace: true });
+    } catch {
+      alert('Could not delete account right now. Please try again.');
     }
   };
 
@@ -248,6 +259,11 @@ export default function Me() {
       <button className="btn-logout" onClick={handleLogout}>
         <LogOut size={18} />
         Log Out
+      </button>
+
+      <button className="btn-danger" onClick={handleDeleteAccount}>
+        <Trash2 size={18} />
+        Delete Account
       </button>
 
       <footer className="me-footer">

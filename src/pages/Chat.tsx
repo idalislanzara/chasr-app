@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, MessageCircle, Loader2, Smile } from 'lucide-react';
+import { ArrowLeft, Send, MessageCircle, Loader2, Smile, Flag, Ban, MoreVertical, X } from 'lucide-react';
 import { api, getSocket } from '../api';
 import { useToast } from '../components/Toast';
 
@@ -35,6 +35,12 @@ export default function Chat() {
   const [sending, setSending] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSent, setReportSent] = useState(false);
+  const [confirmBlock, setConfirmBlock] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const myId = localStorage.getItem('chasr_user_id');
@@ -172,6 +178,7 @@ export default function Chat() {
 
   // Active chat view
   const activeChatData = chats.find(c => c.id === activeChat);
+  const otherUser = activeChatData?.other_user || null;
 
   return (
     <div className="page chat-room-page" style={{ padding: 0, display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -180,7 +187,22 @@ export default function Chat() {
         <button className="btn-icon" onClick={handleBack}>
           <ArrowLeft size={22} />
         </button>
-        <div className="chat-room-info" onClick={() => activeChatData?.other_user && navigate(`/profile/${activeChatData.other_user.id}`)}>
+        <div className="chat-room-actions">
+          {showActions && (
+            <div className="chat-actions-menu">
+              <button onClick={() => { setShowActions(false); setShowReport(true); }}>
+                <Flag size={16} /> Report
+              </button>
+              <button className="danger" onClick={() => { setShowActions(false); setConfirmBlock(true); }}>
+                <Ban size={16} /> Block
+              </button>
+            </div>
+          )}
+          <button className="btn-icon" onClick={() => setShowActions(v => !v)} aria-label="More actions">
+            <MoreVertical size={20} />
+          </button>
+        </div>
+        <div className="chat-room-info" onClick={() => otherUser && navigate(`/profile/${otherUser.id}`)}>
           <img
             src={activeChatData?.other_user?.photos?.[0] || `https://ui-avatars.com/api/?name=?&background=random&color=fff&size=60&bold=true&format=svg`}
             alt=""
@@ -236,6 +258,71 @@ export default function Chat() {
           {QUICK_REACTIONS.map(r => (
             <button key={r} className="quick-reaction" onClick={() => sendMessage(r)}>{r}</button>
           ))}
+        </div>
+      )}
+
+      {confirmBlock && otherUser && (
+        <div className="match-overlay" onClick={() => setConfirmBlock(false)}>
+          <div className="match-modal report-modal" onClick={e => e.stopPropagation()}>
+            <h2>Block {otherUser.name}?</h2>
+            <p className="report-hint">They won't be able to message you, and the conversation will be hidden.</p>
+            <div className="confirm-block-actions">
+              <button className="btn-secondary" onClick={() => setConfirmBlock(false)}>Cancel</button>
+              <button className="btn-danger" onClick={async () => {
+                try { await api.block(otherUser.id); } catch {}
+                showToast({ type: 'info', title: 'Blocked', body: `${otherUser.name} can no longer message you.` });
+                setConfirmBlock(false);
+                handleBack();
+              }}>Confirm Block</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReport && otherUser && (
+        <div className="match-overlay" onClick={() => { setShowReport(false); setReportSent(false); }}>
+          <div className="match-modal report-modal" onClick={e => e.stopPropagation()}>
+            <button className="report-close" onClick={() => { setShowReport(false); setReportSent(false); }}>
+              <X size={18} />
+            </button>
+            <h2>Report {otherUser.name}</h2>
+            {reportSent ? (
+              <div className="report-sent">
+                <p>Thanks for letting us know. Our safety team reviews every report — your profile and report stay private.</p>
+                <button className="btn-primary" onClick={() => { setShowReport(false); setReportSent(false); }}>Close</button>
+              </div>
+            ) : (
+              <>
+                <p className="report-hint">Reports are confidential. Choose the reason that fits best:</p>
+                <div className="report-reasons">
+                  {['Underage person', 'Fake profile', 'Harassment or bullying', 'Offensive or inappropriate content', 'Illegal content', 'Spam', 'Other'].map(r => (
+                    <button
+                      key={r}
+                      className={`report-reason ${reportReason === r ? 'selected' : ''}`}
+                      onClick={() => setReportReason(r)}
+                    >{r}</button>
+                  ))}
+                </div>
+                <textarea
+                  className="report-details"
+                  placeholder="Add details (optional) — dates, messages, anything helpful"
+                  value={reportDetails}
+                  onChange={e => setReportDetails(e.target.value)}
+                  rows={3}
+                />
+                <button
+                  className="btn-primary"
+                  disabled={!reportReason}
+                  onClick={async () => {
+                    try {
+                      await api.report(otherUser.id, reportReason, reportDetails);
+                      setReportSent(true);
+                    } catch (err) { console.error('Report failed:', err); }
+                  }}
+                >Submit Report</button>
+              </>
+            )}
+          </div>
         </div>
       )}
 
