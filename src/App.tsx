@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './store';
-import { AuthProvider } from './authStore';
+import { AuthProvider, useAuth } from './authStore';
 import { ToastProvider } from './components/Toast';
 import AgeGate from './pages/AgeGate';
 import AuthGuard from './components/AuthGuard';
@@ -22,17 +22,31 @@ import './index.css';
 import { safeGet, safeSet } from './safeStorage';
 
 function AgeGateWrapper({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
   const [ageVerified, setAgeVerified] = useState(() => {
     return safeGet('chasr_age_verified') === 'true';
   });
 
-  const handleConfirm = () => {
-    safeSet('chasr_age_verified', 'true');
-    setAgeVerified(true);
-  };
+  // While the session is being restored, wait — don't flash the age gate.
+  if (loading) {
+    return (
+      <div className="auth-page">
+        <div className="auth-container" style={{ justifyContent: 'center' }}>
+          <div className="auth-logo" style={{ fontSize: 40 }}>chasr</div>
+          <div className="spinner-large" />
+        </div>
+      </div>
+    );
+  }
 
-  if (!ageVerified) {
-    return <AgeGate onConfirm={handleConfirm} />;
+  // Logged-in users already proved 18+ at signup — don't re-ask.
+  if (!ageVerified && !user) {
+    return (
+      <AgeGate onConfirm={() => {
+        safeSet('chasr_age_verified', 'true');
+        setAgeVerified(true);
+      }} />
+    );
   }
 
   return <>{children}</>;
@@ -40,8 +54,8 @@ function AgeGateWrapper({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <AgeGateWrapper>
-      <AuthProvider>
+    <AuthProvider>
+      <AgeGateWrapper>
         <ToastProvider>
           <AppProvider>
             <ErrorBoundary>
@@ -76,8 +90,8 @@ export default function App() {
             </BrowserRouter>
             </ErrorBoundary>
           </AppProvider>
-        </ToastProvider>
+          </ToastProvider>
+        </AgeGateWrapper>
       </AuthProvider>
-    </AgeGateWrapper>
   );
 }
