@@ -3778,3 +3778,117 @@ input { font-family: inherit; outline: none; }
   white-space: nowrap;
 }
 .btn-invite:active { opacity: 0.8; }
+
+/* ── Welcome / ad landing page ── */
+.welcome-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.welcome-hero {
+  padding: 44px 24px 12px;
+  text-align: center;
+}
+.welcome-logo {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, #e879f9, #d946ef 40%, #8b5cf6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.welcome-tag {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.welcome-content {
+  flex: 1;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.welcome-headline {
+  font-size: 30px;
+  line-height: 1.15;
+  margin: 0 0 12px;
+  font-weight: 800;
+}
+.welcome-sub {
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+.welcome-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 15px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #d946ef, #8b5cf6);
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  text-decoration: none;
+  box-shadow: 0 6px 24px rgba(217, 70, 239, 0.35);
+}
+.welcome-login {
+  display: block;
+  text-align: center;
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-decoration: none;
+}
+.welcome-features {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.welcome-feature {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.welcome-feature svg {
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.welcome-feature strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+.welcome-feature span {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.welcome-18 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 28px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.welcome-footer {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px 0 30px;
+  font-size: 13px;
+}
+.welcome-footer a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}

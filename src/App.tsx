@@ -15,6 +15,7 @@ import Store from './pages/Store';
 import Nearby from './pages/Nearby';
 import Me from './pages/Me';
 import Login from './pages/Login';
+import Welcome from './pages/Welcome';
 import Register from './pages/Register';
 import ErrorBoundary from './ErrorBoundary';
 import './index.css';
@@ -45,6 +46,7 @@ export default function App() {
             <ErrorBoundary>
               <BrowserRouter>
               <Routes>
+                <Route path="/welcome" element={<Welcome />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route
