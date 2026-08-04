@@ -97,7 +97,11 @@ export default function Login() {
       }
       const result = await login(email.trim(), password);
       if (result.error) {
-        setError(result.error);
+        if (result.error === 'No account found with this email') {
+          setError('No account found for this email. If you signed up before today, that account was lost in an earlier bug — sign up once with this email and it will be saved permanently.');
+        } else {
+          setError(result.error);
+        }
       } else {
         navigate('/', { replace: true });
       }
@@ -185,6 +189,10 @@ export default function Login() {
             )}
           </button>
         </form>
+
+        <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, marginTop: 14 }}>
+          Sign up once — Chasr keeps you logged in every time after.
+        </p>
 
         <div className="auth-footer-text">
           {mode === 'register' ? (
