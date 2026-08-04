@@ -19,14 +19,15 @@ import Welcome from './pages/Welcome';
 import Register from './pages/Register';
 import ErrorBoundary from './ErrorBoundary';
 import './index.css';
+import { safeGet, safeSet } from './safeStorage';
 
 function AgeGateWrapper({ children }: { children: React.ReactNode }) {
   const [ageVerified, setAgeVerified] = useState(() => {
-    return localStorage.getItem('chasr_age_verified') === 'true';
+    return safeGet('chasr_age_verified') === 'true';
   });
 
   const handleConfirm = () => {
-    localStorage.setItem('chasr_age_verified', 'true');
+    safeSet('chasr_age_verified', 'true');
     setAgeVerified(true);
   };
 

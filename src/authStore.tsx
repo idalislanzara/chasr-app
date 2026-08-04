@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { api, connectSocket } from './api';
+import { safeGet, safeSet, safeRemove } from './safeStorage';
 
 export interface AuthUser {
   id: string;
@@ -73,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Restore session from token
   useEffect(() => {
-    const token = localStorage.getItem('chasr_token');
+    const token = safeGet('chasr_token');
     if (!token) { setState({ user: null, loading: false }); return; }
 
     api.getMe()
@@ -83,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         connectSocket(token);
       })
       .catch(() => {
-        localStorage.removeItem('chasr_token');
+        safeRemove('chasr_token');
         setState({ user: null, loading: false });
       });
   }, []);
@@ -92,9 +93,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState(s => ({ ...s, loading: true }));
     try {
       const data = await api.login(email, password);
-      localStorage.setItem('chasr_token', data.token);
+      safeSet('chasr_token', data.token);
       const user = mapUser(data.user);
-      localStorage.setItem('chasr_user_id', user.id);
+      safeSet('chasr_user_id', user.id);
       setState({ user, loading: false });
       connectSocket(data.token);
       return {};
@@ -108,9 +109,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState(s => ({ ...s, loading: true }));
     try {
       const data = await api.register(email, password, inviteCode);
-      localStorage.setItem('chasr_token', data.token);
+      safeSet('chasr_token', data.token);
       const user = mapUser(data.user);
-      localStorage.setItem('chasr_user_id', user.id);
+      safeSet('chasr_user_id', user.id);
       setState({ user, loading: false });
       connectSocket(data.token);
       return {};
@@ -142,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     setState({ user: null, loading: false });
-    localStorage.removeItem('chasr_token');
+    safeRemove('chasr_token');
   }, []);
 
   return (

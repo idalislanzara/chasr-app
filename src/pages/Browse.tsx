@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, MapPin, Navigation, Loader2, Heart, MessageCircle, SlidersHorizontal, Sparkles, Gift } from 'lucide-react';
+import { ShieldCheck, MapPin, Navigation, Loader2, Heart, MessageCircle, SlidersHorizontal, Sparkles, Gift, Play } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
+import { safeGet, safeSet } from '../safeStorage';
+import { demoProfiles } from '../demoProfiles';
 import type { UserProfile } from '../types';
 
 const IDENTITY_OPTIONS = ['All', 'Trans Woman', 'Trans Man', 'Non-Binary', 'Genderqueer', 'Genderfluid'];
@@ -11,6 +13,7 @@ export default function Browse() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [inviteUrl, setInviteUrl] = useState('');
+  const [demoMode, setDemoMode] = useState(() => safeGet('chasr_demo_mode') === '1');
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -78,6 +81,20 @@ export default function Browse() {
     if (a.verified !== b.verified) return a.verified ? -1 : 1;
     return 0;
   });
+
+  const displayProfiles = demoMode
+    ? [
+        ...demoProfiles
+          .filter(p => {
+            if (identityFilter !== 'All' && p.identity !== identityFilter) return false;
+            if (p.age < ageRange[0] || p.age > ageRange[1]) return false;
+            if (filter === 'online' && !p.online) return false;
+            return true;
+          })
+          .map(p => ({ ...p, photos: [] as string[], lat: 0, lng: 0, distance_km: undefined, location_sharing: true })),
+        ...filteredProfiles,
+      ]
+    : filteredProfiles;
 
   // Tap = navigate to profile, Hold = quick favorite
   const handlePointerDown = (_e: React.PointerEvent, profileId: string) => {
@@ -150,6 +167,17 @@ export default function Browse() {
       <header className="browse-header">
         <h1 className="logo">chasr</h1>
         <div className="browse-header-actions">
+          <button
+            className={`btn-demo ${demoMode ? 'active' : ''}`}
+            onClick={() => {
+              const next = !demoMode;
+              setDemoMode(next);
+              safeSet('chasr_demo_mode', next ? '1' : '0');
+            }}
+            aria-label="Toggle demo profiles"
+          >
+            <Play size={14} /> Demo
+          </button>
           <button className="btn-invite" onClick={shareInvite} aria-label="Invite a friend">
             <Gift size={15} /> Invite
           </button>
@@ -165,6 +193,13 @@ export default function Browse() {
           </button>
         </div>
       </header>
+
+      {demoMode && (
+        <div className="demo-banner">
+          <Play size={14} />
+          Demo mode: these profiles are fictional examples, not real people.
+        </div>
+      )}
 
       {showFilters && (
         <div className="filter-drawer">
@@ -217,7 +252,7 @@ export default function Browse() {
       )}
 
       <div className="profile-grid">
-        {filteredProfiles.map((profile) => (
+        {displayProfiles.map((profile: any) => (
           <div
             key={profile.id}
             className={`profile-card ${holdTarget === profile.id ? 'hold-flash' : ''} `}
@@ -237,6 +272,7 @@ export default function Browse() {
               />
               {profile.online && <span className="online-dot" />}
               {profile.verified && <span className="verified-badge-grid"><ShieldCheck size={12} /></span>}
+              {String(profile.id).startsWith('demo_') && <span className="demo-badge">Demo</span>}
               <div className="card-actions-overlay">
                 <button
                   className={`card-action-btn tap-btn ${favoritedIds.has(profile.id) ? 'favorited' : ''}`}
@@ -266,11 +302,16 @@ export default function Browse() {
             </div>
           </div>
         ))}
-        {filteredProfiles.length === 0 && !loading && (
+        {displayProfiles.length === 0 && !loading && (
           <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
             <span className="empty-icon">&#128064;</span>
-            <h3>No one found</h3>
-            <p>Try adjusting your filters or search!</p>
+            <h3>{demoMode ? 'No one found' : "It's quiet here — for now"}</h3>
+            <p>{demoMode ? 'Try adjusting your filters or search!' : "You're one of the first people here. See how Chasr looks with demo profiles:"}</p>
+            {!demoMode && (
+              <button className="btn-primary" style={{ marginTop: 12 }} onClick={() => { setDemoMode(true); safeSet('chasr_demo_mode', '1'); }}>
+                <Play size={16} /> View demo profiles
+              </button>
+            )}
           </div>
         )}
       </div>

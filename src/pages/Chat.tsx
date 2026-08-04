@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, MessageCircle, Loader2, Smile, Flag, Ban, MoreVertical, X } from 'lucide-react';
 import { api, getSocket } from '../api';
 import { useToast } from '../components/Toast';
+import { safeGet } from '../safeStorage';
 
 interface ChatRoom {
   id: string;
@@ -43,7 +44,7 @@ export default function Chat() {
   const [confirmBlock, setConfirmBlock] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const myId = localStorage.getItem('chasr_user_id');
+  const myId = safeGet('chasr_user_id');
 
   useEffect(() => {
     api.getChats().then(data => {

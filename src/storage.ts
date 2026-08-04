@@ -1,17 +1,18 @@
 // localStorage-based storage backend for fully offline/standalone operation
 import { hashPassword, verifyPassword } from './crypto';
+import { safeGet, safeSet, safeRemove } from './safeStorage';
 
 const DB_PREFIX = 'chasr_db_';
 
 function dbGet<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(DB_PREFIX + key);
+    const raw = safeGet(DB_PREFIX + key);
     return raw ? JSON.parse(raw) : fallback;
   } catch { return fallback; }
 }
 
 function dbSet(key: string, value: unknown) {
-  localStorage.setItem(DB_PREFIX + key, JSON.stringify(value));
+  safeSet(DB_PREFIX + key, JSON.stringify(value));
 }
 
 function uuid(): string {
@@ -96,13 +97,13 @@ export async function localLogin(email: string, password: string) {
 }
 
 export function localGetMe() {
-  const token = localStorage.getItem('chasr_token');
+  const token = safeGet('chasr_token');
   if (!token) throw new Error('No token');
   try {
     const payload = JSON.parse(atob(token));
     if (payload.exp < Date.now()) throw new Error('Token expired');
   } catch { throw new Error('Invalid token'); }
-  const userId = localStorage.getItem('chasr_user_id');
+  const userId = safeGet('chasr_user_id');
   const users = dbGet<StoredUser[]>('users', []);
   const user = users.find(u => u.id === userId);
   if (!user) throw new Error('User not found');
@@ -114,7 +115,7 @@ export function localGetMe() {
 // ── Profile ──
 
 export function localUpdateProfile(updates: Record<string, unknown>) {
-  const userId = localStorage.getItem('chasr_user_id');
+  const userId = safeGet('chasr_user_id');
   const users = dbGet<StoredUser[]>('users', []);
   const idx = users.findIndex(u => u.id === userId);
   if (idx === -1) throw new Error('User not found');
@@ -134,7 +135,7 @@ export function localUpdateProfile(updates: Record<string, unknown>) {
 // ── Browse ──
 
 export function localGetProfiles(params?: { online?: string; search?: string }) {
-  const userId = localStorage.getItem('chasr_user_id');
+  const userId = safeGet('chasr_user_id');
   const users = dbGet<StoredUser[]>('users', []);
   let filtered = users.filter(u => u.id !== userId);
   if (params?.online === 'true') {
@@ -152,7 +153,7 @@ export function localGetProfiles(params?: { online?: string; search?: string }) 
 }
 
 export function localGetNearby(lat: number, lng: number, radius?: number) {
-  const userId = localStorage.getItem('chasr_user_id');
+  const userId = safeGet('chasr_user_id');
   const users = dbGet<StoredUser[]>('users', []);
   const r = radius || 50;
   const nearby = users
@@ -169,7 +170,7 @@ export function localGetNearby(lat: number, lng: number, radius?: number) {
 // ── Favorites ──
 
 export function localFavorite(targetId: string) {
-  const userId = localStorage.getItem('chasr_user_id')!;
+  const userId = safeGet('chasr_user_id')!;
   const favs = dbGet<Array<{ user_id: string; target_id: string; created_at: number }>>('favorites', []);
   if (favs.find(f => f.user_id === userId && f.target_id === targetId)) {
     return { isMatch: false };
@@ -181,7 +182,7 @@ export function localFavorite(targetId: string) {
 }
 
 export function localUnfavorite(targetId: string) {
-  const userId = localStorage.getItem('chasr_user_id')!;
+  const userId = safeGet('chasr_user_id')!;
   let favs = dbGet<Array<{ user_id: string; target_id: string; created_at: number }>>('favorites', []);
   favs = favs.filter(f => !(f.user_id === userId && f.target_id === targetId));
   dbSet('favorites', favs);
@@ -189,7 +190,7 @@ export function localUnfavorite(targetId: string) {
 }
 
 export function localGetFavorites() {
-  const userId = localStorage.getItem('chasr_user_id')!;
+  const userId = safeGet('chasr_user_id')!;
   const favs = dbGet<Array<{ user_id: string; target_id: string; created_at: number }>>('favorites', []);
   const users = dbGet<StoredUser[]>('users', []);
   const myFavs = favs.filter(f => f.user_id === userId);
@@ -205,7 +206,7 @@ export function localGetFavorites() {
 // ── Blocks ──
 
 export function localBlock(targetId: string) {
-  const userId = localStorage.getItem('chasr_user_id')!;
+  const userId = safeGet('chasr_user_id')!;
   const blocks = dbGet<Array<{ user_id: string; target_id: string }>>('blocks', []);
   if (!blocks.find(b => b.user_id === userId && b.target_id === targetId)) {
     blocks.push({ user_id: userId, target_id: targetId });
@@ -215,7 +216,7 @@ export function localBlock(targetId: string) {
 }
 
 export function localGetPremium() {
-  const userId = localStorage.getItem('chasr_user_id')!;
+  const userId = safeGet('chasr_user_id')!;
   const users = dbGet<Array<Record<string, unknown>>>('users', []);
   const me = users.find(u => u.id === userId) || {};
   const premiumExpires = Number((me as any).premium_expires_at || 0);
@@ -230,7 +231,7 @@ export function localGetPremium() {
 }
 
 export function localGetLikes() {
-  const userId = localStorage.getItem('chasr_user_id')!;
+  const userId = safeGet('chasr_user_id')!;
   const favorites = dbGet<Array<{ user_id: string; target_id: string }>>('favorites', []);
   const users = dbGet<Array<Record<string, unknown> & { id: string }>>('users', []);
   const likerIds = favorites.filter(f => f.target_id === userId).map(f => f.user_id);
@@ -240,7 +241,7 @@ export function localGetLikes() {
 }
 
 export function localReport(targetId: string, reason: string, details = '') {
-  const userId = localStorage.getItem('chasr_user_id')!;
+  const userId = safeGet('chasr_user_id')!;
   const reports = dbGet<Array<{ reporter_id: string; target_id: string; reason: string; details: string; created_at: number }>>('reports', []);
   reports.push({ reporter_id: userId, target_id: targetId, reason, details, created_at: Date.now() });
   dbSet('reports', reports);
@@ -272,7 +273,7 @@ const AUTO_REPLIES = [
 ];
 
 export function localGetChats() {
-  const userId = localStorage.getItem('chasr_user_id')!;
+  const userId = safeGet('chasr_user_id')!;
   const chats = dbGet<Record<string, { user_id: string; other_id: string; created_at: number }>>('chats', {});
   const messages = dbGet<StoredMessage[]>('messages', []);
   const users = dbGet<StoredUser[]>('users', []);
@@ -312,7 +313,7 @@ export function localGetMessages(chatId: string) {
 }
 
 export function localSendMessage(chatId: string, text: string) {
-  const userId = localStorage.getItem('chasr_user_id')!;
+  const userId = safeGet('chasr_user_id')!;
   const messages = dbGet<StoredMessage[]>('messages', []);
   const msg: StoredMessage = {
     id: uuid(),
@@ -354,7 +355,7 @@ export function localSendMessage(chatId: string, text: string) {
 // ── Online ──
 
 export function localGetOnline() {
-  const userId = localStorage.getItem('chasr_user_id');
+  const userId = safeGet('chasr_user_id');
   const users = dbGet<StoredUser[]>('users', []);
   const online = users
     .filter(u => u.id !== userId && Date.now() - u.last_active < 5 * 60 * 1000)
@@ -365,20 +366,20 @@ export function localGetOnline() {
 // ── Seed ──
 
 export function localDeleteAccount() {
-  const userId = localStorage.getItem('chasr_user_id');
+  const userId = safeGet('chasr_user_id');
   if (!userId) return { ok: true };
   let users = dbGet<StoredUser[]>('users', []);
   users = users.filter(u => u.id !== userId);
   dbSet('users', users);
-  localStorage.removeItem('chasr_token');
-  localStorage.removeItem('chasr_user_id');
+  safeRemove('chasr_token');
+  safeRemove('chasr_user_id');
   return { ok: true };
 }
 
 // ── Photo upload (data URL based) ──
 
 export async function localUploadPhotos(files: File[]) {
-  const userId = localStorage.getItem('chasr_user_id')!;
+  const userId = safeGet('chasr_user_id')!;
   const users = dbGet<StoredUser[]>('users', []);
   const idx = users.findIndex(u => u.id === userId);
   if (idx === -1) throw new Error('User not found');

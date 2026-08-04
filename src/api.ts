@@ -28,7 +28,7 @@ async function checkBackend(): Promise<boolean> {
 }
 
 async function remoteRequest(path: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('chasr_token');
+  const token = safeGet('chasr_token');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
@@ -136,7 +136,7 @@ export const api = {
 
   uploadPhotos: async (files: File[]) => {
     if (await checkBackend()) {
-      const token = localStorage.getItem('chasr_token');
+      const token = safeGet('chasr_token');
       const formData = new FormData();
       files.forEach(f => formData.append('photos', f));
       const res = await fetch(`${API_URL}/api/photos`, {
@@ -151,6 +151,7 @@ export const api = {
 };
 
 import { io } from 'socket.io-client';
+import { safeGet } from './safeStorage';
 let socket: ReturnType<typeof io> | null = null;
 
 export function connectSocket(token: string) {
