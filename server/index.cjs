@@ -532,6 +532,32 @@ app.post('/api/reports', authMiddleware, (req, res) => {
 });
 
 // ── Chats ──
+app.post('/api/chats/start', authMiddleware, (req, res) => {
+  const { targetId } = req.body || {};
+  if (!targetId || typeof targetId !== 'string') return res.status(400).json({ error: 'Target user required' });
+  if (targetId === req.userId) return res.status(400).json({ error: 'You cannot chat with yourself' });
+
+  const target = db.prepare('SELECT id FROM users WHERE id = ?').get(targetId);
+  if (!target) return res.status(404).json({ error: 'User not found' });
+
+  const isBlocked = db.prepare('SELECT 1 FROM blocks WHERE (user_id = ? AND target_id = ?) OR (user_id = ? AND target_id = ?)')
+    .get(req.userId, targetId, targetId, req.userId);
+  if (isBlocked) return res.status(403).json({ error: 'Conversation unavailable' });
+
+  const now = Date.now();
+  let chat = db.prepare('SELECT * FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)')
+    .get(req.userId, targetId, targetId, req.userId);
+
+  if (!chat) {
+    const chatId = 'chat_' + uuidv4().slice(0, 12);
+    db.prepare('INSERT INTO chats (id, user1_id, user2_id, created_at) VALUES (?, ?, ?, ?)')
+      .run(chatId, req.userId, targetId, now);
+    chat = { id: chatId, user1_id: req.userId, user2_id: targetId, last_message: '', last_message_at: now, created_at: now };
+  }
+
+  res.json({ chat });
+});
+
 app.get('/api/chats', authMiddleware, (req, res) => {
   const chats = db.prepare(`
     SELECT c.*, 

@@ -272,6 +272,35 @@ const AUTO_REPLIES = [
   "You had me at hello 💜",
 ];
 
+export function localCreateChat(targetId: string) {
+  const userId = safeGet('chasr_user_id')!;
+  const chats = dbGet<Record<string, { user_id: string; other_id: string; created_at: number }>>('chats', {});
+  const existing = Object.entries(chats).find(([, c]) =>
+    (c.user_id === userId && c.other_id === targetId) || (c.user_id === targetId && c.other_id === userId)
+  );
+  const now = Date.now();
+  if (existing) {
+    const [chatId, c] = existing;
+    return { chat: { id: chatId, user1_id: c.user_id, user2_id: c.other_id, last_message: '', last_message_at: now, created_at: c.created_at } };
+  }
+  const chatId = 'chat_' + uuid();
+  chats[chatId] = { user_id: userId, other_id: targetId, created_at: now };
+  dbSet('chats', chats);
+  const users = dbGet<StoredUser[]>('users', []);
+  const otherUser = users.find(u => u.id === targetId);
+  return {
+    chat: {
+      id: chatId,
+      user1_id: userId,
+      user2_id: targetId,
+      last_message: '',
+      last_message_at: now,
+      created_at: now,
+      other_user: otherUser ? { id: otherUser.id, name: otherUser.name, age: otherUser.age, photos: otherUser.photos, identity: otherUser.identity } : null,
+    },
+  };
+}
+
 export function localGetChats() {
   const userId = safeGet('chasr_user_id')!;
   const chats = dbGet<Record<string, { user_id: string; other_id: string; created_at: number }>>('chats', {});

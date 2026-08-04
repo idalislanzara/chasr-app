@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Send, MessageCircle, Loader2, Smile, Flag, Ban, MoreVertical, X } from 'lucide-react';
 import { api, getSocket } from '../api';
 import { useToast } from '../components/Toast';
@@ -27,6 +27,7 @@ const QUICK_REACTIONS = ['Hey! 👋', 'What\'s up? 😊', 'You\'re cute! 💕', 
 
 export default function Chat() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
   const [chats, setChats] = useState<ChatRoom[]>([]);
   const [activeChat, setActiveChat] = useState<string | null>(null);
@@ -49,6 +50,11 @@ export default function Chat() {
   useEffect(() => {
     api.getChats().then(data => {
       setChats(data.chats || []);
+      const openChatId = (location.state as { chatId?: string } | null)?.chatId;
+      if (openChatId) {
+        setActiveChat(openChatId);
+        navigate('/chat', { replace: true, state: null });
+      }
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -143,7 +149,7 @@ export default function Chat() {
           <div className="empty-state">
             <span className="empty-icon">&#128172;</span>
             <h3>No conversations yet</h3>
-            <p>Favorite someone to start chatting!</p>
+            <p>Tap Message on a profile to start chatting!</p>
           </div>
         ) : (
           <div className="chat-list">

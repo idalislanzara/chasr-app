@@ -94,8 +94,8 @@ export default function Profile() {
 
   const handleMessage = async () => {
     try {
-      if (!isFavorited) await api.favorite(profile.id);
-      navigate('/chat');
+      const data = await api.createChat(profile.id);
+      navigate('/chat', { state: { chatId: data.chat?.id } });
     } catch (err) {
       console.error('Message failed:', err);
     }

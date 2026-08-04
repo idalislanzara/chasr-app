@@ -119,6 +119,11 @@ export const api = {
     return storage.localGetMessages(chatId);
   },
 
+  createChat: async (targetId: string) => {
+    if (await checkBackend()) return remoteRequest('/api/chats/start', { method: 'POST', body: JSON.stringify({ targetId }) });
+    return storage.localCreateChat(targetId);
+  },
+
   sendMessage: async (chatId: string, text: string) => {
     if (await checkBackend()) return remoteRequest(`/api/chats/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ text }) });
     return storage.localSendMessage(chatId, text);

@@ -110,6 +110,10 @@ export default function Browse() {
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
       // Short tap — navigate
+      if (String(profileId).startsWith('demo_')) {
+        showToast({ type: 'info', title: 'Demo profile', body: 'Fictional example — not a real person.' });
+        return;
+      }
       navigate(`/profile/${profileId}`);
     } else {
       // Was a long press — just clear
@@ -125,6 +129,10 @@ export default function Browse() {
   };
 
   const quickFavorite = async (profileId: string) => {
+    if (String(profileId).startsWith('demo_')) {
+      showToast({ type: 'info', title: 'Demo profile', body: 'Fictional example — not a real person.' });
+      return;
+    }
     if (favoritedIds.has(profileId)) return;
     setHoldTarget(profileId);
     setTimeout(() => setHoldTarget(null), 800);
@@ -143,12 +151,13 @@ export default function Browse() {
 
   const handleMessage = async (e: React.MouseEvent, profileId: string) => {
     e.stopPropagation();
+    if (String(profileId).startsWith('demo_')) {
+      showToast({ type: 'info', title: 'Demo profile', body: 'Fictional example — message real users to chat.' });
+      return;
+    }
     try {
-      if (!favoritedIds.has(profileId)) {
-        await api.favorite(profileId);
-        setFavoritedIds(prev => new Set([...prev, profileId]));
-      }
-      navigate('/chat');
+      const data = await api.createChat(profileId);
+      navigate('/chat', { state: { chatId: data.chat?.id } });
     } catch (err) {
       console.error(err);
     }
