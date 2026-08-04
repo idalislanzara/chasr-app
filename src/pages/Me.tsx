@@ -95,6 +95,10 @@ export default function Me() {
   };
 
   const handleSave = async () => {
+    if (age < 18 || age > 99) {
+      alert('Please enter a valid age between 18 and 99');
+      return;
+    }
     setSaving(true);
     try {
       await updateProfile({
@@ -144,7 +148,7 @@ export default function Me() {
 
         <div className="edit-section">
           <label>Age</label>
-          <input type="number" min={18} max={99} value={age} onChange={e => setAge(Number(e.target.value))} className="edit-input" />
+          <input type="number" min={18} max={99} value={age || ''} placeholder="Your age" onChange={e => setAge(e.target.value === '' ? 0 : Number(e.target.value))} className="edit-input" />
         </div>
 
         <div className="edit-section">

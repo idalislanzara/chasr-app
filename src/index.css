@@ -1692,6 +1692,13 @@ input { font-family: inherit; outline: none; }
   font-weight: 500;
 }
 
+.field-error {
+  color: var(--red);
+  font-size: 12px;
+  margin-top: 6px;
+  font-weight: 500;
+}
+
 .input-group {
   position: relative;
   display: flex;

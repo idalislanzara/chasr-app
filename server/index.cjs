@@ -107,6 +107,10 @@ db.exec(`
   if (!cols.includes('premium_expires_at')) db.exec('ALTER TABLE users ADD COLUMN premium_expires_at INTEGER DEFAULT 0');
   if (!cols.includes('invite_code')) db.exec("ALTER TABLE users ADD COLUMN invite_code TEXT DEFAULT ''");
   if (!cols.includes('invited_by')) db.exec("ALTER TABLE users ADD COLUMN invited_by TEXT DEFAULT ''");
+
+  // Sanitize out-of-range ages from earlier bugs
+  const badAges = db.prepare('UPDATE users SET age = 18 WHERE age < 18 OR age > 99').run();
+  if (badAges.changes > 0) console.log('Sanitized', badAges.changes, 'user(s) with invalid ages');
 })();
 
 // ── Express + Socket.io ──
@@ -301,8 +305,8 @@ app.put('/api/profile', authMiddleware, (req, res) => {
   const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
-  if (age !== undefined && (!Number.isInteger(age) || age < 18)) {
-    return res.status(400).json({ error: 'You must be 18 or older to use Chasr' });
+  if (age !== undefined && (!Number.isInteger(age) || age < 18 || age > 99)) {
+    return res.status(400).json({ error: 'Age must be between 18 and 99' });
   }
 
   const updates = [];

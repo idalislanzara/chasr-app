@@ -112,7 +112,7 @@ export default function Register() {
 
   const canProceed = () => {
     switch (step) {
-      case 'basics': return name.trim().length > 0 && age >= 18;
+      case 'basics': return name.trim().length > 0 && age >= 18 && age <= 99;
       case 'identity': return pronouns.length > 0 && identity.length > 0;
       case 'details': return true;
       case 'interests': return looking_for.length > 0;
@@ -269,10 +269,14 @@ export default function Register() {
                       type="number"
                       min={18}
                       max={99}
-                      value={age}
-                      onChange={(e) => setAge(Math.max(18, parseInt(e.target.value) || 18))}
+                      value={age || ''}
+                      placeholder="Your age"
+                      onChange={(e) => setAge(e.target.value === '' ? 0 : Number(e.target.value))}
                     />
                   </div>
+{age !== 0 && (age < 18 || age > 99) && (
+  <p className="field-error">Age must be between 18 and 99</p>
+)}
                 </div>
               )}
 
