@@ -3761,3 +3761,20 @@ input { font-family: inherit; outline: none; }
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--accent-light);
 }
+
+/* Browse invite button */
+.btn-invite {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(217, 70, 239, 0.45);
+  background: rgba(217, 70, 239, 0.1);
+  color: var(--accent-light);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-invite:active { opacity: 0.8; }

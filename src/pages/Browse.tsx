@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, MapPin, Navigation, Loader2, Heart, MessageCircle, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { ShieldCheck, MapPin, Navigation, Loader2, Heart, MessageCircle, SlidersHorizontal, Sparkles, Gift } from 'lucide-react';
 import { api } from '../api';
+import { useToast } from '../components/Toast';
 import type { UserProfile } from '../types';
 
 const IDENTITY_OPTIONS = ['All', 'Trans Woman', 'Trans Man', 'Non-Binary', 'Genderqueer', 'Genderfluid'];
 
 export default function Browse() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [inviteUrl, setInviteUrl] = useState('');
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -25,7 +28,26 @@ export default function Browse() {
     api.getFavorites().then(data => {
       setFavoritedIds(new Set((data.favorites || []).map((f: UserProfile) => f.id)));
     }).catch(() => {});
+    api.getPremium().then(d => setInviteUrl(d.invite_url || '')).catch(() => {});
   }, []);
+
+  const shareInvite = async () => {
+    if (!inviteUrl) {
+      try {
+        const d = await api.getPremium();
+        setInviteUrl(d.invite_url || '');
+        if (!d.invite_url) return;
+      } catch { return; }
+    }
+    const text = 'Join me on Chasr Dating 💜 — we both get 7 days of Chasr+ free!';
+    try {
+      if (navigator.share) { await navigator.share({ title: 'Chasr Dating', text, url: inviteUrl }); }
+      else {
+        await navigator.clipboard.writeText(`${text} ${inviteUrl}`);
+        showToast({ type: 'info', title: 'Invite link copied', body: 'Paste it anywhere to share Chasr.' });
+      }
+    } catch {}
+  };
 
   const fetchProfiles = useCallback(async () => {
     setLoading(true);
@@ -128,6 +150,9 @@ export default function Browse() {
       <header className="browse-header">
         <h1 className="logo">chasr</h1>
         <div className="browse-header-actions">
+          <button className="btn-invite" onClick={shareInvite} aria-label="Invite a friend">
+            <Gift size={15} /> Invite
+          </button>
           <button className="btn-store-pill" onClick={() => navigate('/store')}>
             <Sparkles size={14} /> Chasr+
           </button>
