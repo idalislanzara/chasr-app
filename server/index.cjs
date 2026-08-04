@@ -12,13 +12,24 @@ const fs = require('fs');
 
 // ── Config ──
 const PORT = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'chasr_secret_' + uuidv4();
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+// Stable JWT secret: use env var if set, otherwise persist a generated secret to
+// disk so sessions survive restarts/deploys even when no env var is configured.
+let JWT_SECRET = process.env.JWT_SECRET || '';
+if (!JWT_SECRET) {
+  const secretFile = path.join(DATA_DIR, 'jwt_secret.txt');
+  try { JWT_SECRET = fs.readFileSync(secretFile, 'utf8').trim(); } catch {}
+  if (!JWT_SECRET) {
+    JWT_SECRET = 'chasr_secret_' + uuidv4();
+    try { fs.writeFileSync(secretFile, JWT_SECRET, { mode: 0o600 }); } catch {}
+  }
+}
 const BCRYPT_ROUNDS = 12;
 
 // ── Database ──
-const DATA_DIR = process.env.DATA_DIR || __dirname;
 const db = new Database(process.env.DB_PATH || path.join(DATA_DIR, 'chasr.db'));
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
@@ -138,8 +149,29 @@ if (!fs.existsSync(uploadsDir)) {
 app.use('/uploads', express.static(uploadsDir));
 
 // ── Auth Middleware ──
+function getCookie(req, name) {
+  const raw = (req.headers && req.headers.cookie) || '';
+  for (const part of raw.split(';')) {
+    const i = part.indexOf('=');
+    if (i === -1) continue;
+    if (part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim());
+  }
+  return null;
+}
+
+function setSessionCookie(res, token) {
+  res.cookie('chasr_token', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    secure: process.env.NODE_ENV === 'production',
+  });
+}
+
 function authMiddleware(req, res, next) {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const bearer = req.headers.authorization;
+  const token = (bearer && bearer.startsWith('Bearer ') ? bearer.slice(7) : null) || getCookie(req, 'chasr_token');
   if (!token) return res.status(401).json({ error: 'No token provided' });
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -205,6 +237,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     const token = jwt.sign({ userId: id }, JWT_SECRET, { expiresIn: '30d' });
+    setSessionCookie(res, token);
     const fresh = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
     const { password_hash, ...safeUser } = fresh;
     res.json({ token, user: safeUser });
@@ -269,6 +302,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     db.prepare('UPDATE users SET last_active = ? WHERE id = ?').run(Date.now(), user.id);
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    setSessionCookie(res, token);
 
     const { password_hash, ...safeUser } = user;
     res.json({ token, user: safeUser });
@@ -276,6 +310,11 @@ app.post('/api/auth/login', async (req, res) => {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('chasr_token', { path: '/' });
+  res.json({ ok: true });
 });
 
 // ── Profile Routes ──
@@ -660,7 +699,7 @@ app.get('/api/online', authMiddleware, (req, res) => {
 
 // ── Socket.io ──
 io.on('connection', (socket) => {
-  const token = socket.handshake.auth?.token;
+  const token = socket.handshake.auth?.token || getCookie(socket.handshake, 'chasr_token');
   if (!token) return socket.disconnect();
 
   try {

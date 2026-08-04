@@ -4,12 +4,19 @@ import * as storage from './storage';
 const API_URL = import.meta.env.VITE_API_URL || 'https://chasr-app-1.onrender.com';
 
 let backendAvailable: boolean | null = null;
+let lastProbe = 0;
+const PROBE_RETRY_MS = 10_000;
 
+// Probe the real backend, but never lock the session into offline mode for long:
+// if a probe fails (e.g. Render cold start), retry on the next call after a short wait.
 async function checkBackend(): Promise<boolean> {
-  if (backendAvailable !== null) return backendAvailable;
+  const now = Date.now();
+  if (backendAvailable === true || (backendAvailable === false && now - lastProbe < PROBE_RETRY_MS)) {
+    return backendAvailable;
+  }
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
+    const timeout = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(`${API_URL}/api/health`, {
       method: 'GET',
       signal: controller.signal,
@@ -23,6 +30,7 @@ async function checkBackend(): Promise<boolean> {
     return true;
   } catch {
     backendAvailable = false;
+    lastProbe = now;
     return false;
   }
 }
@@ -36,7 +44,11 @@ async function remoteRequest(path: string, options: RequestInit = {}) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) {
+    const err = new Error(data.error || 'Request failed') as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -132,6 +144,12 @@ export const api = {
   getOnline: async () => {
     if (await checkBackend()) return remoteRequest('/api/online');
     return storage.localGetOnline();
+  },
+
+  logout: async () => {
+    try {
+      if (await checkBackend()) await remoteRequest('/api/auth/logout', { method: 'POST' });
+    } catch {}
   },
 
   deleteAccount: async () => {

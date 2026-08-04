@@ -72,21 +72,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const userRef = useRef<AuthUser | null>(null);
   userRef.current = state.user;
 
-  // Restore session from token
+  // Restore session. Works via the stored token AND/OR the httpOnly session
+  // cookie (so logins survive even in browsers that block localStorage).
   useEffect(() => {
-    const token = safeGet('chasr_token');
-    if (!token) { setState({ user: null, loading: false }); return; }
-
-    api.getMe()
-      .then((raw) => {
+    let cancelled = false;
+    const restore = async (attempt = 0) => {
+      try {
+        const raw = await api.getMe();
+        if (cancelled) return;
         const user = mapUser(raw);
+        safeSet('chasr_user_id', user.id);
         setState({ user, loading: false });
-        connectSocket(token);
-      })
-      .catch(() => {
-        safeRemove('chasr_token');
-        setState({ user: null, loading: false });
-      });
+        connectSocket(safeGet('chasr_token') || '');
+      } catch (err) {
+        if (cancelled) return;
+        const status = (err as { status?: number }).status;
+        // Only clear the saved login when the server says it's invalid.
+        if (status === 401) {
+          safeRemove('chasr_token');
+          setState({ user: null, loading: false });
+          return;
+        }
+        // Transient failure (cold start / network) — retry a few times,
+        // and never destroy the saved login.
+        if (attempt < 4) {
+          setTimeout(() => restore(attempt + 1), 3000 * (attempt + 1));
+        } else {
+          setState({ user: null, loading: false });
+        }
+      }
+    };
+    restore();
+    return () => { cancelled = true; };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -142,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    api.logout().catch(() => {});
     setState({ user: null, loading: false });
     safeRemove('chasr_token');
   }, []);
