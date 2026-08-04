@@ -396,7 +396,7 @@ app.get('/api/profiles', authMiddleware, (req, res) => {
   const blockedBy = db.prepare('SELECT user_id FROM blocks WHERE target_id = ?').all(req.userId).map(r => r.user_id);
   const allBlocked = [...new Set([...blocked, ...blockedBy, req.userId])];
 
-  let where = `id NOT IN (${allBlocked.map(() => '?').join(',')})`;
+  let where = `id NOT IN (${allBlocked.map(() => '?').join(',')}) AND name != ''`;
   let params = [...allBlocked];
 
   if (online === 'true') {
@@ -453,6 +453,7 @@ app.get('/api/nearby', authMiddleware, (req, res) => {
       ((lat - ?) * (lat - ?) + (lng - ?) * (lng - ?)) as dist_sq
     FROM users
     WHERE id NOT IN (${allBlocked.map(() => '?').join(',')})
+      AND name != ''
       AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
       AND location_sharing = 1
     ORDER BY dist_sq ASC
@@ -684,7 +685,7 @@ app.get('/api/online', authMiddleware, (req, res) => {
   const blocked = db.prepare('SELECT target_id FROM blocks WHERE user_id = ?').all(req.userId).map(r => r.target_id);
   const allBlocked = [...blocked, req.userId];
 
-  const online = db.prepare(`SELECT * FROM users WHERE last_active > ? AND id NOT IN (${allBlocked.map(() => '?').join(',')}) ORDER BY last_active DESC`)
+  const online = db.prepare(`SELECT * FROM users WHERE last_active > ? AND name != '' AND id NOT IN (${allBlocked.map(() => '?').join(',')}) ORDER BY last_active DESC`)
     .all(fiveMinAgo, ...allBlocked);
 
   const safe = online.map(({ password_hash, lat: _lat, lng: _lng, ...u }) => ({
