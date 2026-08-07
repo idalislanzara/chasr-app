@@ -385,7 +385,14 @@ app.post('/api/photos', authMiddleware, upload.array('photos', 9), (req, res) =>
   const urls = req.files.map(f => `${base}/uploads/${f.filename}`);
   const user = db.prepare('SELECT photos FROM users WHERE id = ?').get(req.userId);
   const existing = JSON.parse(user.photos || '[]');
-  const updated = [...existing, ...urls].slice(0, 9);
+  // Replace the photo set: new uploads become the profile photos (first = main).
+  for (const url of existing) {
+    const m = url.match(/\/uploads\/([^/?]+)$/);
+    if (m) {
+      try { fs.unlinkSync(path.join(uploadsDir, m[1])); } catch {}
+    }
+  }
+  const updated = urls.slice(0, 9);
   db.prepare('UPDATE users SET photos = ? WHERE id = ?').run(JSON.stringify(updated), req.userId);
   res.json({ photos: updated });
 });

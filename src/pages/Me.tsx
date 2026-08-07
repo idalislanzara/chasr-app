@@ -97,6 +97,7 @@ export default function Me() {
       console.error('Upload failed:', err);
     } finally {
       setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
