@@ -407,6 +407,27 @@ export function localDeleteAccount() {
 
 // ── Photo upload (data URL based) ──
 
+export function localDeletePhoto(index: number) {
+  const userId = safeGet('chasr_user_id')!;
+  const users = dbGet<StoredUser[]>('users', []);
+  const idx = users.findIndex(u => u.id === userId);
+  if (idx === -1) throw new Error('User not found');
+  users[idx].photos.splice(index, 1);
+  dbSet('users', users);
+  return { photos: users[idx].photos };
+}
+
+export function localSetMainPhoto(index: number) {
+  const userId = safeGet('chasr_user_id')!;
+  const users = dbGet<StoredUser[]>('users', []);
+  const idx = users.findIndex(u => u.id === userId);
+  if (idx === -1) throw new Error('User not found');
+  const [picked] = users[idx].photos.splice(index, 1);
+  users[idx].photos.unshift(picked);
+  dbSet('users', users);
+  return { photos: users[idx].photos };
+}
+
 export async function localUploadPhotos(files: File[]) {
   const userId = safeGet('chasr_user_id')!;
   const users = dbGet<StoredUser[]>('users', []);

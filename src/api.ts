@@ -157,6 +157,16 @@ export const api = {
     return storage.localDeleteAccount();
   },
 
+  deletePhoto: async (index: number) => {
+    if (await checkBackend()) return remoteRequest(`/api/photos/${index}`, { method: 'DELETE' });
+    return storage.localDeletePhoto(index);
+  },
+
+  setMainPhoto: async (index: number) => {
+    if (await checkBackend()) return remoteRequest(`/api/photos/main/${index}`, { method: 'PUT' });
+    return storage.localSetMainPhoto(index);
+  },
+
   uploadPhotos: async (files: File[]) => {
     if (await checkBackend()) {
       const token = safeGet('chasr_token');

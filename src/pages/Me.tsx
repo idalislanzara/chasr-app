@@ -101,6 +101,31 @@ export default function Me() {
     }
   };
 
+  const makeMain = async (i: number) => {
+    if (i === 0) return;
+    setUploading(true);
+    try {
+      const result = await api.setMainPhoto(i);
+      if (result.photos) await updateProfile({ photos: result.photos } as any);
+    } catch (err) {
+      console.error('Reorder failed:', err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removePhoto = async (i: number) => {
+    setUploading(true);
+    try {
+      const result = await api.deletePhoto(i);
+      if (result.photos) await updateProfile({ photos: result.photos } as any);
+    } catch (err) {
+      console.error('Remove failed:', err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     if (age < 18 || age > 99) {
       alert('Please enter a valid age between 18 and 99');
@@ -149,6 +174,26 @@ export default function Me() {
             {saving ? <Loader2 size={16} className="spin" /> : <><Check size={16} /> Save</>}
           </button>
         </header>
+
+        <div className="edit-section">
+          <label>Photos</label>
+          {user.photos.length > 0 && (
+            <div className="photo-strip">
+              {user.photos.map((url, i) => (
+                <div key={url} className={`photo-thumb ${i === 0 ? 'main' : ''}`}>
+                  <img src={url} alt={`Photo ${i + 1}`} onClick={() => makeMain(i)} />
+                  {i === 0 && <span className="photo-main-badge">Main</span>}
+                  <button type="button" className="photo-remove" onClick={() => removePhoto(i)} title="Remove photo">×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button type="button" className="btn-secondary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            {uploading ? <Loader2 size={16} className="spin" /> : <><Camera size={16} /> Add photos</>}
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoUpload} />
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>Up to 9 photos. Tap one to make it your main photo.</p>
+        </div>
 
         <div className="edit-section">
           <label>Name</label>

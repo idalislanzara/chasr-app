@@ -385,16 +385,39 @@ app.post('/api/photos', authMiddleware, upload.array('photos', 9), (req, res) =>
   const urls = req.files.map(f => `${base}/uploads/${f.filename}`);
   const user = db.prepare('SELECT photos FROM users WHERE id = ?').get(req.userId);
   const existing = JSON.parse(user.photos || '[]');
-  // Replace the photo set: new uploads become the profile photos (first = main).
-  for (const url of existing) {
-    const m = url.match(/\/uploads\/([^/?]+)$/);
-    if (m) {
-      try { fs.unlinkSync(path.join(uploadsDir, m[1])); } catch {}
-    }
-  }
-  const updated = urls.slice(0, 9);
+  // Append to the album (first photo = main), up to 9 total.
+  const updated = [...existing, ...urls].slice(0, 9);
   db.prepare('UPDATE users SET photos = ? WHERE id = ?').run(JSON.stringify(updated), req.userId);
   res.json({ photos: updated });
+});
+
+function unlinkUploaded(url) {
+  const m = url && url.match(/\/uploads\/([^/?]+)$/);
+  if (m) {
+    try { fs.unlinkSync(path.join(uploadsDir, m[1])); } catch {}
+  }
+}
+
+app.delete('/api/photos/:index', authMiddleware, (req, res) => {
+  const idx = parseInt(req.params.index, 10);
+  const user = db.prepare('SELECT photos FROM users WHERE id = ?').get(req.userId);
+  const existing = JSON.parse(user.photos || '[]');
+  if (idx < 0 || idx >= existing.length) return res.status(400).json({ error: 'Invalid photo' });
+  const [removed] = existing.splice(idx, 1);
+  unlinkUploaded(removed);
+  db.prepare('UPDATE users SET photos = ? WHERE id = ?').run(JSON.stringify(existing), req.userId);
+  res.json({ photos: existing });
+});
+
+app.put('/api/photos/main/:index', authMiddleware, (req, res) => {
+  const idx = parseInt(req.params.index, 10);
+  const user = db.prepare('SELECT photos FROM users WHERE id = ?').get(req.userId);
+  const existing = JSON.parse(user.photos || '[]');
+  if (idx < 0 || idx >= existing.length) return res.status(400).json({ error: 'Invalid photo' });
+  const [picked] = existing.splice(idx, 1);
+  existing.unshift(picked);
+  db.prepare('UPDATE users SET photos = ? WHERE id = ?').run(JSON.stringify(existing), req.userId);
+  res.json({ photos: existing });
 });
 
 // ── Browse / Discover ──

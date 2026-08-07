@@ -71,7 +71,7 @@ export default function Register() {
     try {
       const result = await api.uploadPhotos(Array.from(files));
       if (result.photos) {
-        setPhotos(result.photos.slice(0, 1));
+        setPhotos(result.photos);
       }
     } catch {
       setPhotoError('Photo upload failed — try a smaller image (under 5MB).');
@@ -132,6 +132,31 @@ export default function Register() {
   const prevStep = () => {
     const idx = STEPS.indexOf(step);
     if (idx > 0) setStep(STEPS[idx - 1]);
+  };
+
+  const makeMain = async (i: number) => {
+    if (i === 0) return;
+    setPhotoUploading(true);
+    try {
+      const result = await api.setMainPhoto(i);
+      if (result.photos) setPhotos(result.photos);
+    } catch {
+      setPhotoError('Could not reorder photos');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const removePhoto = async (i: number) => {
+    setPhotoUploading(true);
+    try {
+      const result = await api.deletePhoto(i);
+      if (result.photos) setPhotos(result.photos);
+    } catch {
+      setPhotoError('Could not remove photo');
+    } finally {
+      setPhotoUploading(false);
+    }
   };
 
   const finishProfile = () => {
@@ -451,37 +476,33 @@ export default function Register() {
 
               {/* ── Step: Done ── */}
               {step === 'done' && (
-                <div className="wizard-step wizard-done">
-                  <div className="wizard-done-icon">🎉</div>
-                  <h2>You're all set!</h2>
-                  <p className="wizard-hint">
-                    Welcome to Chasr Dating, <strong>{name}</strong>!
-                    <br />Your profile is ready. Let's find your people.
-                  </p>
+                <div className="wizard-step">
+                  <div className="wizard-icon"><Camera size={32} /></div>
+                  <h2>Add your photos</h2>
+                  <p className="wizard-hint">Up to 9 — the first one is your main photo</p>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, margin: '18px 0' }}>
-                    <div
-                      onClick={() => photoInputRef.current?.click()}
-                      style={{ width: 96, height: 96, borderRadius: '50%', overflow: 'hidden', border: '2px dashed var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'var(--bg-card)' }}
-                    >
-                      {photoUploading ? (
-                        <Loader2 size={28} className="spin" style={{ color: 'var(--accent)' }} />
-                      ) : photos.length > 0 ? (
-                        <img src={photos[0]} alt="Your photo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <Camera size={28} style={{ color: 'var(--accent)' }} />
-                      )}
+                  {photos.length > 0 && (
+                    <div className="photo-strip">
+                      {photos.map((url, i) => (
+                        <div key={url} className={`photo-thumb ${i === 0 ? 'main' : ''}`}>
+                          <img src={url} alt={`Photo ${i + 1}`} onClick={() => makeMain(i)} />
+                          {i === 0 && <span className="photo-main-badge">Main</span>}
+                          <button type="button" className="photo-remove" onClick={() => removePhoto(i)} title="Remove photo">×</button>
+                        </div>
+                      ))}
                     </div>
-                    <button type="button" className="btn-secondary" onClick={() => photoInputRef.current?.click()} disabled={photoUploading}>
-                      {photos.length > 0 ? 'Change photo' : 'Add a photo'}
-                    </button>
-                    <input ref={photoInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoUpload} />
-                    {photoError && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#f87171', fontSize: 12 }}>
-                        <AlertTriangle size={14} /> {photoError}
-                      </span>
-                    )}
-                  </div>
+                  )}
+
+                  <button type="button" className="btn-secondary" onClick={() => photoInputRef.current?.click()} disabled={photoUploading} style={{ marginBottom: 8 }}>
+                    {photoUploading ? <Loader2 size={16} className="spin" /> : <><Camera size={16} /> {photos.length > 0 ? 'Add more photos' : 'Add photos'}</>}
+                  </button>
+                  <input ref={photoInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoUpload} />
+                  {photoError && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#f87171', fontSize: 12, marginBottom: 8 }}>
+                      <AlertTriangle size={14} /> {photoError}
+                    </span>
+                  )}
+                  <p className="wizard-hint" style={{ marginBottom: 16 }}>Tap a photo to make it your main photo</p>
 
                   <button className="btn-primary auth-submit" onClick={finishProfile}>
                     Start Browsing
