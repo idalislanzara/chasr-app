@@ -118,6 +118,7 @@ db.exec(`
   if (!cols.includes('premium_expires_at')) db.exec('ALTER TABLE users ADD COLUMN premium_expires_at INTEGER DEFAULT 0');
   if (!cols.includes('invite_code')) db.exec("ALTER TABLE users ADD COLUMN invite_code TEXT DEFAULT ''");
   if (!cols.includes('invited_by')) db.exec("ALTER TABLE users ADD COLUMN invited_by TEXT DEFAULT ''");
+  if (!cols.includes('surgery_status')) db.exec("ALTER TABLE users ADD COLUMN surgery_status TEXT DEFAULT ''");
 
   // Sanitize out-of-range ages from earlier bugs
   const badAges = db.prepare('UPDATE users SET age = 18 WHERE age < 18 OR age > 99').run();
@@ -340,7 +341,7 @@ app.delete('/api/auth/me', authMiddleware, (req, res) => {
 });
 
 app.put('/api/profile', authMiddleware, (req, res) => {
-  const { name, age, pronouns, identity, tagline, bio, height, body_type, ethnicity, looking_for, interests, lat, lng, location_sharing } = req.body;
+  const { name, age, pronouns, identity, surgery_status, tagline, bio, height, body_type, ethnicity, looking_for, interests, lat, lng, location_sharing } = req.body;
   const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -354,6 +355,7 @@ app.put('/api/profile', authMiddleware, (req, res) => {
   if (age !== undefined) { updates.push('age = ?'); values.push(age); }
   if (pronouns !== undefined) { updates.push('pronouns = ?'); values.push(pronouns); }
   if (identity !== undefined) { updates.push('identity = ?'); values.push(identity); }
+  if (surgery_status !== undefined) { updates.push('surgery_status = ?'); values.push(surgery_status); }
   if (tagline !== undefined) { updates.push('tagline = ?'); values.push(tagline); }
   if (bio !== undefined) { updates.push('bio = ?'); values.push(bio); }
   if (height !== undefined) { updates.push('height = ?'); values.push(height); }

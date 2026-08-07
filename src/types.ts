@@ -4,6 +4,7 @@ export interface UserProfile {
   age: number;
   pronouns: string;
   identity: string;
+  surgery_status: string;
   tagline: string;
   bio: string;
   distance: string;

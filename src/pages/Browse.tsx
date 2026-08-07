@@ -7,7 +7,7 @@ import { safeGet, safeSet } from '../safeStorage';
 import { demoProfiles } from '../demoProfiles';
 import type { UserProfile } from '../types';
 
-const IDENTITY_OPTIONS = ['All', 'Trans Woman', 'Trans Man', 'Non-Binary', 'Genderqueer', 'Genderfluid'];
+const IDENTITY_OPTIONS = ['All', 'Trans Woman', 'Trans Man', 'Non-Binary', 'Genderqueer', 'Genderfluid', 'Cross Dresser'];
 
 export default function Browse() {
   const navigate = useNavigate();
@@ -303,7 +303,7 @@ export default function Browse() {
               <div className="card-name-row">
                 <span className="card-name">{profile.name}, {profile.age}</span>
               </div>
-              <span className="card-identity">{profile.identity}</span>
+              <span className="card-identity">{profile.identity}{profile.surgery_status ? ` · ${profile.surgery_status}` : ''}</span>
               <div className="card-meta">
                 <MapPin size={10} />
                 <span>{profile.distance || 'Nearby'}</span>
