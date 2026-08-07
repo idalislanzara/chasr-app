@@ -5,6 +5,7 @@ export interface UserProfile {
   pronouns: string;
   identity: string;
   surgery_status: string;
+  sexuality: string;
   tagline: string;
   bio: string;
   distance: string;

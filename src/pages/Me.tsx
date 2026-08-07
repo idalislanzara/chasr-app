@@ -10,6 +10,7 @@ import { api } from '../api';
 
 const IDENTITY_OPTIONS = ['Trans Woman', 'Trans Man', 'Non-Binary', 'Genderqueer', 'Genderfluid', 'Agender', 'Two-Spirit', 'Cross Dresser', 'Questioning', 'Other'];
 const SURGERY_OPTIONS = ['Pre-op', 'Post-op', 'Non-op', 'Prefer not to say'];
+const SEXUALITY_OPTIONS = ['Straight', 'Gay', 'Bisexual', 'Queer', 'Curious', 'Pansexual', 'Asexual', 'Prefer not to say'];
 const PRONOUNS_OPTIONS = ['she/her', 'he/him', 'they/them', 'ze/zir', 'she/they', 'he/they', 'any pronouns', 'other'];
 const LOOKING_FOR_OPTIONS = ['Dates', 'Friends', 'Chat', 'Right Now', 'Relationship', 'Networking'];
 const BODY_TYPES = ['Slim', 'Athletic', 'Average', 'Curvy', 'Petite', 'Muscular', 'Full-figured', 'Prefer not to say'];
@@ -33,6 +34,7 @@ export default function Me() {
   const [pronouns, setPronouns] = useState('');
   const [identity, setIdentity] = useState('');
   const [surgeryStatus, setSurgeryStatus] = useState('');
+  const [sexuality, setSexuality] = useState('');
   const [tagline, setTagline] = useState('');
   const [bio, setBio] = useState('');
   const [height, setHeight] = useState('');
@@ -55,6 +57,7 @@ export default function Me() {
       setPronouns(user.pronouns || '');
       setIdentity(user.identity || '');
       setSurgeryStatus(user.surgery_status || '');
+      setSexuality(user.sexuality || '');
       setTagline(user.tagline || '');
       setBio(user.bio || '');
       setHeight(user.height || '');
@@ -110,6 +113,7 @@ export default function Me() {
         pronouns,
         identity,
         surgery_status: surgeryStatus,
+        sexuality,
         tagline,
         bio,
         height,
@@ -178,6 +182,15 @@ export default function Me() {
           <div className="edit-chips">
             {SURGERY_OPTIONS.map(opt => (
               <button key={opt} className={`filter-chip ${surgeryStatus === opt ? 'active' : ''}`} onClick={() => setSurgeryStatus(surgeryStatus === opt ? '' : opt)}>{opt}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="edit-section">
+          <label>Sexuality (optional)</label>
+          <div className="edit-chips">
+            {SEXUALITY_OPTIONS.map(opt => (
+              <button key={opt} className={`filter-chip ${sexuality === opt ? 'active' : ''}`} onClick={() => setSexuality(sexuality === opt ? '' : opt)}>{opt}</button>
             ))}
           </div>
         </div>

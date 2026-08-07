@@ -10,6 +10,7 @@ export interface AuthUser {
   pronouns: string;
   identity: string;
   surgery_status: string;
+  sexuality: string;
   tagline: string;
   bio: string;
   photos: string[];
@@ -52,6 +53,7 @@ function mapUser(raw: Record<string, unknown>): AuthUser {
     pronouns: (raw.pronouns as string) || '',
     identity: (raw.identity as string) || '',
     surgery_status: (raw.surgery_status as string) || '',
+    sexuality: (raw.sexuality as string) || '',
     tagline: (raw.tagline as string) || '',
     bio: (raw.bio as string) || '',
     photos: typeof raw.photos === 'string' ? JSON.parse(raw.photos as string) : (raw.photos as string[]) || [],

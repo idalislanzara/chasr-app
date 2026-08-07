@@ -186,6 +186,7 @@ export default function Profile() {
         <p className="profile-pronouns">{profile.pronouns}</p>
         <p className="profile-identity-tag">{profile.identity}</p>
         {profile.surgery_status && <p className="profile-identity-tag">{profile.surgery_status}</p>}
+        {profile.sexuality && <p className="profile-identity-tag">{profile.sexuality}</p>}
         <p className="profile-tagline">"{profile.tagline}"</p>
 
         <div className="profile-stats">

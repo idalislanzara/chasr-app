@@ -10,6 +10,7 @@ import { api } from '../api';
 const PRONOUNS_OPTIONS = ['she/her', 'he/him', 'they/them', 'ze/zir', 'she/they', 'he/they', 'any pronouns', 'other'];
 const IDENTITY_OPTIONS = ['Trans Woman', 'Trans Man', 'Non-Binary', 'Genderqueer', 'Genderfluid', 'Agender', 'Two-Spirit', 'Cross Dresser', 'Questioning', 'Other'];
 const SURGERY_OPTIONS = ['Pre-op', 'Post-op', 'Non-op', 'Prefer not to say'];
+const SEXUALITY_OPTIONS = ['Straight', 'Gay', 'Bisexual', 'Queer', 'Curious', 'Pansexual', 'Asexual', 'Prefer not to say'];
 const LOOKING_FOR_OPTIONS = ['Dates', 'Friends', 'Chat', 'Right Now', 'Relationship', 'Networking'];
 const INTERESTS_OPTIONS = [
   'Dancing', 'Music', 'Gaming', 'Cooking', 'Travel', 'Photography',
@@ -49,6 +50,7 @@ export default function Register() {
   const [pronouns, setPronouns] = useState(user?.pronouns || '');
   const [identity, setIdentity] = useState(user?.identity || '');
   const [surgery_status, setSurgeryStatus] = useState(user?.surgery_status || '');
+  const [sexuality, setSexuality] = useState(user?.sexuality || '');
   const [height, setHeight] = useState(user?.height || "5'7\"");
   const [body_type, setBodyType] = useState(user?.body_type || '');
   const [ethnicity, setEthnicity] = useState(user?.ethnicity || '');
@@ -139,6 +141,7 @@ export default function Register() {
       pronouns,
       identity,
       surgery_status,
+      sexuality,
       tagline: tagline.trim() || `Hey, I'm ${name}! 👋`,
       bio: bio.trim() || `Just joined Chasr Dating!`,
       photos,
@@ -325,6 +328,19 @@ export default function Register() {
                         onClick={() => setSurgeryStatus(surgery_status === o ? '' : o)}
                       >
                         {surgery_status === o && <Check size={12} />} {o}
+                      </button>
+                    ))}
+                  </div>
+
+                  <label className="field-label">Sexuality (optional)</label>
+                  <div className="chip-grid">
+                    {SEXUALITY_OPTIONS.map((o) => (
+                      <button
+                        key={o}
+                        className={`chip ${sexuality === o ? 'active' : ''}`}
+                        onClick={() => setSexuality(sexuality === o ? '' : o)}
+                      >
+                        {sexuality === o && <Check size={12} />} {o}
                       </button>
                     ))}
                   </div>
