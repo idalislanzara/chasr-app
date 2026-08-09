@@ -1,11 +1,15 @@
 import * as storage from './storage';
 
-// Empty string = same origin (works on Render, fails on GitHub Pages → falls back to localStorage)
-const API_URL = import.meta.env.VITE_API_URL || 'https://chasr-app-1.onrender.com';
+// Empty string = same origin (works on Render). Set VITE_API_URL when hosting the
+// frontend somewhere else (e.g. GitHub Pages), which falls back to localStorage.
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 let backendAvailable: boolean | null = null;
 let lastProbe = 0;
 const PROBE_RETRY_MS = 10_000;
+// On the live host, a cold start can take ~30-60s. Give same-origin probes room to
+// finish so we never silently fall back to phone-only "ghost" accounts.
+const PROBE_TIMEOUT_MS = API_URL === '' ? 70_000 : 8_000;
 
 // Probe the real backend, but never lock the session into offline mode for long:
 // if a probe fails (e.g. Render cold start), retry on the next call after a short wait.
@@ -16,7 +20,7 @@ async function checkBackend(): Promise<boolean> {
   }
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
     const res = await fetch(`${API_URL}/api/health`, {
       method: 'GET',
       signal: controller.signal,
@@ -43,9 +47,10 @@ async function remoteRequest(path: string, options: RequestInit = {}) {
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
-  const data = await res.json();
+  let data: any = {};
+  try { data = await res.json(); } catch { data = {}; }
   if (!res.ok) {
-    const err = new Error(data.error || 'Request failed') as Error & { status?: number };
+    const err = new Error((data && typeof data.error === 'string' ? data.error : '') || `Request failed (${res.status})`) as Error & { status?: number };
     err.status = res.status;
     throw err;
   }

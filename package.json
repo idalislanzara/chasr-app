@@ -36,6 +36,7 @@
     "leaflet": "^1.9.4",
     "lucide-react": "^1.25.0",
     "multer": "^2.2.0",
+    "pg": "^8.23.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-leaflet": "^5.0.0",

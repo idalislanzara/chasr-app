@@ -12,3 +12,7 @@ keystore.properties
 *.db-shm
 *.db-wal
 android/.kotlin/
+
+# Local test artifacts
+server/uploads/
+server/jwt_secret.txt

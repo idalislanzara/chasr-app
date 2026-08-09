@@ -2,7 +2,6 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
@@ -15,116 +14,281 @@ const PORT = process.env.PORT || 3001;
 const DATA_DIR = process.env.DATA_DIR || __dirname;
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-// Stable JWT secret: use env var if set, otherwise persist a generated secret to
-// disk so sessions survive restarts/deploys even when no env var is configured.
-let JWT_SECRET = process.env.JWT_SECRET || '';
-if (!JWT_SECRET) {
-  const secretFile = path.join(DATA_DIR, 'jwt_secret.txt');
-  try { JWT_SECRET = fs.readFileSync(secretFile, 'utf8').trim(); } catch {}
-  if (!JWT_SECRET) {
-    JWT_SECRET = 'chasr_secret_' + uuidv4();
-    try { fs.writeFileSync(secretFile, JWT_SECRET, { mode: 0o600 }); } catch {}
-  }
-}
+// Use a real Postgres database when DATABASE_URL is set (e.g. Neon on Render).
+// Otherwise fall back to the embedded SQLite file for local development.
+const USE_PG = !!process.env.DATABASE_URL;
 const BCRYPT_ROUNDS = 12;
 
 // ── Database ──
-const db = new Database(process.env.DB_PATH || path.join(DATA_DIR, 'chasr.db'));
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+const Database = require('better-sqlite3');
+const { Pool } = require('pg');
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    name TEXT DEFAULT '',
-    age INTEGER DEFAULT 18,
-    pronouns TEXT DEFAULT '',
-    identity TEXT DEFAULT '',
-    tagline TEXT DEFAULT '',
-    bio TEXT DEFAULT '',
-    photos TEXT DEFAULT '[]',
-    height TEXT DEFAULT '',
-    body_type TEXT DEFAULT '',
-    ethnicity TEXT DEFAULT '',
-    looking_for TEXT DEFAULT '[]',
-    interests TEXT DEFAULT '[]',
-    verified INTEGER DEFAULT 0,
-    lat REAL DEFAULT 40.7306,
-    lng REAL DEFAULT -73.9866,
-    location_sharing INTEGER DEFAULT 1,
-    joined_at INTEGER NOT NULL,
-    last_active INTEGER NOT NULL
-  );
+const sqlite = USE_PG ? null : new Database(process.env.DB_PATH || path.join(DATA_DIR, 'chasr.db'));
+const pool = USE_PG
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DB_SSL === 'disable' ? false : { rejectUnauthorized: false },
+    })
+  : null;
 
-  CREATE TABLE IF NOT EXISTS favorites (
-    user_id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    PRIMARY KEY (user_id, target_id),
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (target_id) REFERENCES users(id)
-  );
+// Translate the few places where SQLite and Postgres differ.
+function convertSql(sql) {
+  const hadIgnore = /insert\s+or\s+ignore/i.test(sql);
+  let out = sql.replace(/insert\s+or\s+ignore\s+into/gi, 'INSERT INTO');
+  let i = 0;
+  out = out.replace(/\?/g, () => `$${++i}`);
+  if (hadIgnore) out += ' ON CONFLICT DO NOTHING';
+  return out;
+}
 
-  CREATE TABLE IF NOT EXISTS blocks (
-    user_id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    PRIMARY KEY (user_id, target_id)
-  );
+async function dbGet(sql, ...params) {
+  if (USE_PG) {
+    const r = await pool.query(convertSql(sql), params);
+    return r.rows[0];
+  }
+  return sqlite.prepare(sql).get(...params);
+}
 
-  CREATE TABLE IF NOT EXISTS messages (
-    id TEXT PRIMARY KEY,
-    chat_id TEXT NOT NULL,
-    sender_id TEXT NOT NULL,
-    text TEXT NOT NULL,
-    read INTEGER DEFAULT 0,
-    created_at INTEGER NOT NULL
-  );
+async function dbAll(sql, ...params) {
+  if (USE_PG) {
+    const r = await pool.query(convertSql(sql), params);
+    return r.rows;
+  }
+  return sqlite.prepare(sql).all(...params);
+}
 
-  CREATE TABLE IF NOT EXISTS chats (
-    id TEXT PRIMARY KEY,
-    user1_id TEXT NOT NULL,
-    user2_id TEXT NOT NULL,
-    last_message TEXT DEFAULT '',
-    last_message_at INTEGER DEFAULT 0,
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (user1_id) REFERENCES users(id),
-    FOREIGN KEY (user2_id) REFERENCES users(id)
-  );
+async function dbRun(sql, ...params) {
+  if (USE_PG) {
+    const r = await pool.query(convertSql(sql), params);
+    return { changes: r.rowCount || 0 };
+  }
+  return sqlite.prepare(sql).run(...params);
+}
 
-  CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id, created_at);
-  CREATE INDEX IF NOT EXISTS idx_chats_user1 ON chats(user1_id);
-  CREATE INDEX IF NOT EXISTS idx_chats_user2 ON chats(user2_id);
-  CREATE INDEX IF NOT EXISTS idx_users_location ON users(lat, lng);
+async function dbExec(sql) {
+  if (USE_PG) {
+    for (const stmt of sql.split(';').map(s => s.trim()).filter(Boolean)) {
+      await pool.query(stmt);
+    }
+    return;
+  }
+  return sqlite.exec(sql);
+}
 
-  CREATE TABLE IF NOT EXISTS reports (
-    id TEXT PRIMARY KEY,
-    reporter_id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    reason TEXT NOT NULL,
-    details TEXT DEFAULT '',
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (reporter_id) REFERENCES users(id),
-    FOREIGN KEY (target_id) REFERENCES users(id)
-  );
-  CREATE INDEX IF NOT EXISTS idx_reports_target ON reports(target_id);
-`);
+// Stable JWT secret: env var > database (PG mode) > file on disk (SQLite mode),
+// so sessions survive restarts/deploys.
+async function getJwtSecret() {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  if (USE_PG) {
+    const row = await dbGet("SELECT v FROM meta WHERE k = 'jwt_secret'");
+    if (row && row.v) return row.v;
+    const secret = 'chasr_secret_' + uuidv4();
+    await dbRun("INSERT INTO meta (k, v) VALUES (?, ?)", 'jwt_secret', secret);
+    return secret;
+  }
+  const secretFile = path.join(DATA_DIR, 'jwt_secret.txt');
+  try {
+    const s = fs.readFileSync(secretFile, 'utf8').trim();
+    if (s) return s;
+  } catch {}
+  const secret = 'chasr_secret_' + uuidv4();
+  try { fs.writeFileSync(secretFile, secret, { mode: 0o600 }); } catch {}
+  return secret;
+}
 
-// Migrations for existing databases
-(function migrate() {
-  const cols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
-  if (!cols.includes('premium_expires_at')) db.exec('ALTER TABLE users ADD COLUMN premium_expires_at INTEGER DEFAULT 0');
-  if (!cols.includes('invite_code')) db.exec("ALTER TABLE users ADD COLUMN invite_code TEXT DEFAULT ''");
-  if (!cols.includes('invited_by')) db.exec("ALTER TABLE users ADD COLUMN invited_by TEXT DEFAULT ''");
-  if (!cols.includes('surgery_status')) db.exec("ALTER TABLE users ADD COLUMN surgery_status TEXT DEFAULT ''");
-  if (!cols.includes('sexuality')) db.exec("ALTER TABLE users ADD COLUMN sexuality TEXT DEFAULT ''");
+async function initSchema() {
+  if (USE_PG) {
+    await dbExec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        name TEXT DEFAULT '',
+        age INTEGER DEFAULT 18,
+        pronouns TEXT DEFAULT '',
+        identity TEXT DEFAULT '',
+        tagline TEXT DEFAULT '',
+        bio TEXT DEFAULT '',
+        photos TEXT DEFAULT '[]',
+        height TEXT DEFAULT '',
+        body_type TEXT DEFAULT '',
+        ethnicity TEXT DEFAULT '',
+        looking_for TEXT DEFAULT '[]',
+        interests TEXT DEFAULT '[]',
+        verified INTEGER DEFAULT 0,
+        lat REAL DEFAULT 40.7306,
+        lng REAL DEFAULT -73.9866,
+        location_sharing INTEGER DEFAULT 1,
+        joined_at INTEGER NOT NULL,
+        last_active INTEGER NOT NULL
+      );
 
-  // Sanitize out-of-range ages from earlier bugs
-  const badAges = db.prepare('UPDATE users SET age = 18 WHERE age < 18 OR age > 99').run();
-  if (badAges.changes > 0) console.log('Sanitized', badAges.changes, 'user(s) with invalid ages');
-})();
+      CREATE TABLE IF NOT EXISTS favorites (
+        user_id TEXT NOT NULL,
+        target_id TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, target_id),
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (target_id) REFERENCES users(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS blocks (
+        user_id TEXT NOT NULL,
+        target_id TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, target_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        chat_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        text TEXT NOT NULL,
+        read INTEGER DEFAULT 0,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS chats (
+        id TEXT PRIMARY KEY,
+        user1_id TEXT NOT NULL,
+        user2_id TEXT NOT NULL,
+        last_message TEXT DEFAULT '',
+        last_message_at INTEGER DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (user1_id) REFERENCES users(id),
+        FOREIGN KEY (user2_id) REFERENCES users(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_chats_user1 ON chats(user1_id);
+      CREATE INDEX IF NOT EXISTS idx_chats_user2 ON chats(user2_id);
+      CREATE INDEX IF NOT EXISTS idx_users_location ON users(lat, lng);
+
+      CREATE TABLE IF NOT EXISTS reports (
+        id TEXT PRIMARY KEY,
+        reporter_id TEXT NOT NULL,
+        target_id TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        details TEXT DEFAULT '',
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (reporter_id) REFERENCES users(id),
+        FOREIGN KEY (target_id) REFERENCES users(id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_reports_target ON reports(target_id);
+
+      CREATE TABLE IF NOT EXISTS meta (
+        k TEXT PRIMARY KEY,
+        v TEXT NOT NULL
+      );
+    `);
+    // Migrations for existing databases
+    await dbExec(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_expires_at INTEGER DEFAULT 0;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_code TEXT DEFAULT '';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by TEXT DEFAULT '';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS surgery_status TEXT DEFAULT '';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS sexuality TEXT DEFAULT '';
+    `);
+    // Sanitize out-of-range ages from earlier bugs
+    const badAges = await dbRun('UPDATE users SET age = 18 WHERE age < 18 OR age > 99');
+    if (badAges.changes > 0) console.log('Sanitized', badAges.changes, 'user(s) with invalid ages');
+  } else {
+    if (!sqlite) return;
+    sqlite.pragma('journal_mode = WAL');
+    sqlite.pragma('foreign_keys = ON');
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        name TEXT DEFAULT '',
+        age INTEGER DEFAULT 18,
+        pronouns TEXT DEFAULT '',
+        identity TEXT DEFAULT '',
+        tagline TEXT DEFAULT '',
+        bio TEXT DEFAULT '',
+        photos TEXT DEFAULT '[]',
+        height TEXT DEFAULT '',
+        body_type TEXT DEFAULT '',
+        ethnicity TEXT DEFAULT '',
+        looking_for TEXT DEFAULT '[]',
+        interests TEXT DEFAULT '[]',
+        verified INTEGER DEFAULT 0,
+        lat REAL DEFAULT 40.7306,
+        lng REAL DEFAULT -73.9866,
+        location_sharing INTEGER DEFAULT 1,
+        joined_at INTEGER NOT NULL,
+        last_active INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS favorites (
+        user_id TEXT NOT NULL,
+        target_id TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, target_id),
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (target_id) REFERENCES users(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS blocks (
+        user_id TEXT NOT NULL,
+        target_id TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, target_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        chat_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        text TEXT NOT NULL,
+        read INTEGER DEFAULT 0,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS chats (
+        id TEXT PRIMARY KEY,
+        user1_id TEXT NOT NULL,
+        user2_id TEXT NOT NULL,
+        last_message TEXT DEFAULT '',
+        last_message_at INTEGER DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (user1_id) REFERENCES users(id),
+        FOREIGN KEY (user2_id) REFERENCES users(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_chats_user1 ON chats(user1_id);
+      CREATE INDEX IF NOT EXISTS idx_chats_user2 ON chats(user2_id);
+      CREATE INDEX IF NOT EXISTS idx_users_location ON users(lat, lng);
+
+      CREATE TABLE IF NOT EXISTS reports (
+        id TEXT PRIMARY KEY,
+        reporter_id TEXT NOT NULL,
+        target_id TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        details TEXT DEFAULT '',
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (reporter_id) REFERENCES users(id),
+        FOREIGN KEY (target_id) REFERENCES users(id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_reports_target ON reports(target_id);
+    `);
+    // Migrations for existing databases
+    const cols = sqlite.prepare('PRAGMA table_info(users)').all().map(c => c.name);
+    if (!cols.includes('premium_expires_at')) sqlite.exec('ALTER TABLE users ADD COLUMN premium_expires_at INTEGER DEFAULT 0');
+    if (!cols.includes('invite_code')) sqlite.exec("ALTER TABLE users ADD COLUMN invite_code TEXT DEFAULT ''");
+    if (!cols.includes('invited_by')) sqlite.exec("ALTER TABLE users ADD COLUMN invited_by TEXT DEFAULT ''");
+    if (!cols.includes('surgery_status')) sqlite.exec("ALTER TABLE users ADD COLUMN surgery_status TEXT DEFAULT ''");
+    if (!cols.includes('sexuality')) sqlite.exec("ALTER TABLE users ADD COLUMN sexuality TEXT DEFAULT ''");
+
+    // Sanitize out-of-range ages from earlier bugs
+    const badAges = sqlite.prepare('UPDATE users SET age = 18 WHERE age < 18 OR age > 99').run();
+    if (badAges.changes > 0) console.log('Sanitized', badAges.changes, 'user(s) with invalid ages');
+  }
+}
+
+let JWT_SECRET = '';
 
 // ── Express + Socket.io ──
 const app = express();
@@ -138,10 +302,12 @@ app.set('trust proxy', true);
 app.use(express.json({ limit: '10mb' }));
 
 // Serve uploaded photos
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, process.env.UPLOADS_PATH || path.join(DATA_DIR, 'uploads')),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + uuidv4().slice(0, 8) + path.extname(file.originalname)),
-});
+const storage = USE_PG
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (req, file, cb) => cb(null, process.env.UPLOADS_PATH || path.join(DATA_DIR, 'uploads')),
+      filename: (req, file, cb) => cb(null, Date.now() + '-' + uuidv4().slice(0, 8) + path.extname(file.originalname)),
+    });
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 const uploadsDir = process.env.UPLOADS_PATH || path.join(DATA_DIR, 'uploads');
@@ -199,12 +365,12 @@ function isPremium(user) {
   return !!user.premium_expires_at && Number(user.premium_expires_at) > Date.now();
 }
 
-function grantPremium(userId, days) {
-  const user = db.prepare('SELECT premium_expires_at FROM users WHERE id = ?').get(userId);
+async function grantPremium(userId, days) {
+  const user = await dbGet('SELECT premium_expires_at FROM users WHERE id = ?', userId);
   if (!user) return;
   const base = Math.max(Date.now(), user.premium_expires_at || 0);
   const until = base + days * 24 * 60 * 60 * 1000;
-  db.prepare('UPDATE users SET premium_expires_at = ? WHERE id = ?').run(until, userId);
+  await dbRun('UPDATE users SET premium_expires_at = ? WHERE id = ?', until, userId);
 }
 
 // ── Health ──
@@ -219,30 +385,30 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters with an uppercase letter, lowercase letter, and a number' });
     }
 
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
+    const existing = await dbGet('SELECT id FROM users WHERE email = ?', email.toLowerCase());
     if (existing) return res.status(400).json({ error: 'Account already exists' });
 
     const id = 'user_' + Date.now() + '_' + uuidv4().slice(0, 8);
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const now = Date.now();
 
-    db.prepare('INSERT INTO users (id, email, password_hash, joined_at, last_active, invite_code, invited_by) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(id, email.toLowerCase(), passwordHash, now, now, makeInviteCode(), '');
+    await dbRun('INSERT INTO users (id, email, password_hash, joined_at, last_active, invite_code, invited_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      id, email.toLowerCase(), passwordHash, now, now, makeInviteCode(), '');
 
     // Referral: valid invite code grants both sides a free Chasr+ trial
     if (inviteCode && typeof inviteCode === 'string') {
-      const inviter = db.prepare('SELECT id, invite_code FROM users WHERE invite_code = ? AND id != ?')
-        .get(inviteCode.trim().toUpperCase(), id);
+      const inviter = await dbGet('SELECT id, invite_code FROM users WHERE invite_code = ? AND id != ?',
+        inviteCode.trim().toUpperCase(), id);
       if (inviter) {
-        db.prepare('UPDATE users SET invited_by = ? WHERE id = ?').run(inviter.id, id);
-        grantPremium(inviter.id, REFERRAL_PREMIUM_DAYS);
-        grantPremium(id, REFERRAL_PREMIUM_DAYS);
+        await dbRun('UPDATE users SET invited_by = ? WHERE id = ?', inviter.id, id);
+        await grantPremium(inviter.id, REFERRAL_PREMIUM_DAYS);
+        await grantPremium(id, REFERRAL_PREMIUM_DAYS);
       }
     }
 
     const token = jwt.sign({ userId: id }, JWT_SECRET, { expiresIn: '30d' });
     setSessionCookie(res, token);
-    const fresh = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    const fresh = await dbGet('SELECT * FROM users WHERE id = ?', id);
     const { password_hash, ...safeUser } = fresh;
     res.json({ token, user: safeUser });
   } catch (err) {
@@ -252,8 +418,8 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // ── Premium Routes ──
-app.get('/api/premium', authMiddleware, (req, res) => {
-  const user = db.prepare('SELECT id, premium_expires_at, invite_code, invited_by FROM users WHERE id = ?').get(req.userId);
+app.get('/api/premium', authMiddleware, async (req, res) => {
+  const user = await dbGet('SELECT id, premium_expires_at, invite_code, invited_by FROM users WHERE id = ?', req.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json({
     premium: isPremium(user),
@@ -265,21 +431,21 @@ app.get('/api/premium', authMiddleware, (req, res) => {
 });
 
 // Who liked you (premium feature — free users see the count only)
-app.get('/api/likes', authMiddleware, (req, res) => {
-  const me = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+app.get('/api/likes', authMiddleware, async (req, res) => {
+  const me = await dbGet('SELECT * FROM users WHERE id = ?', req.userId);
   if (!me) return res.status(404).json({ error: 'User not found' });
-  const blocked = db.prepare('SELECT target_id FROM blocks WHERE user_id = ?').all(req.userId).map(r => r.target_id);
-  const blockedBy = db.prepare('SELECT user_id FROM blocks WHERE target_id = ?').all(req.userId).map(r => r.user_id);
+  const blocked = (await dbAll('SELECT target_id FROM blocks WHERE user_id = ?', req.userId)).map(r => r.target_id);
+  const blockedBy = (await dbAll('SELECT user_id FROM blocks WHERE target_id = ?', req.userId)).map(r => r.user_id);
   const excluded = [...new Set([...blocked, ...blockedBy, req.userId])];
 
-  const likers = db.prepare(`
+  const likers = await dbAll(`
     SELECT u.*, f.created_at as liked_at FROM favorites f
     JOIN users u ON f.user_id = u.id
     WHERE f.target_id = ? AND f.user_id NOT IN (${excluded.map(() => '?').join(',')})
     ORDER BY f.created_at DESC
-  `).all(req.userId, ...excluded);
+  `, req.userId, ...excluded);
 
-  const myFavIds = db.prepare('SELECT target_id FROM favorites WHERE user_id = ?').all(req.userId).map(r => r.target_id);
+  const myFavIds = (await dbAll('SELECT target_id FROM favorites WHERE user_id = ?', req.userId)).map(r => r.target_id);
   const premium = isPremium(me);
 
   const safe = likers.map(({ password_hash, lat: _lat, lng: _lng, ...u }) => ({
@@ -298,13 +464,13 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase());
+    const user = await dbGet('SELECT * FROM users WHERE email = ?', email.toLowerCase());
     if (!user) return res.status(400).json({ error: 'No account found with this email' });
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(400).json({ error: 'Incorrect password' });
 
-    db.prepare('UPDATE users SET last_active = ? WHERE id = ?').run(Date.now(), user.id);
+    await dbRun('UPDATE users SET last_active = ? WHERE id = ?', Date.now(), user.id);
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
     setSessionCookie(res, token);
 
@@ -322,30 +488,28 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // ── Profile Routes ──
-app.get('/api/auth/me', authMiddleware, (req, res) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+app.get('/api/auth/me', authMiddleware, async (req, res) => {
+  const user = await dbGet('SELECT * FROM users WHERE id = ?', req.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
   const { password_hash, ...safeUser } = user;
   res.json(safeUser);
 });
 
-app.delete('/api/auth/me', authMiddleware, (req, res) => {
-  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.userId);
+app.delete('/api/auth/me', authMiddleware, async (req, res) => {
+  const user = await dbGet('SELECT id FROM users WHERE id = ?', req.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  const tx = db.transaction(() => {
-    db.prepare('DELETE FROM favorites WHERE user_id = ? OR target_id = ?').run(req.userId, req.userId);
-    db.prepare('DELETE FROM blocks WHERE user_id = ? OR target_id = ?').run(req.userId, req.userId);
-    db.prepare('DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE user1_id = ? OR user2_id = ?)').run(req.userId, req.userId);
-    db.prepare('DELETE FROM chats WHERE user1_id = ? OR user2_id = ?').run(req.userId, req.userId);
-    db.prepare('DELETE FROM users WHERE id = ?').run(req.userId);
-  });
-  tx();
+  await dbRun('DELETE FROM favorites WHERE user_id = ? OR target_id = ?', req.userId, req.userId);
+  await dbRun('DELETE FROM blocks WHERE user_id = ? OR target_id = ?', req.userId, req.userId);
+  await dbRun('DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE user1_id = ? OR user2_id = ?)', req.userId, req.userId);
+  await dbRun('DELETE FROM chats WHERE user1_id = ? OR user2_id = ?', req.userId, req.userId);
+  await dbRun('DELETE FROM reports WHERE reporter_id = ? OR target_id = ?', req.userId, req.userId);
+  await dbRun('DELETE FROM users WHERE id = ?', req.userId);
   res.json({ ok: true });
 });
 
-app.put('/api/profile', authMiddleware, (req, res) => {
+app.put('/api/profile', authMiddleware, async (req, res) => {
   const { name, age, pronouns, identity, surgery_status, sexuality, tagline, bio, height, body_type, ethnicity, looking_for, interests, lat, lng, location_sharing } = req.body;
-  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.userId);
+  const user = await dbGet('SELECT id FROM users WHERE id = ?', req.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
   if (age !== undefined && (!Number.isInteger(age) || age < 18 || age > 99)) {
@@ -374,62 +538,64 @@ app.put('/api/profile', authMiddleware, (req, res) => {
   values.push(Date.now());
   values.push(req.userId);
 
-  db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+  await dbRun(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, ...values);
 
-  const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+  const updated = await dbGet('SELECT * FROM users WHERE id = ?', req.userId);
   const { password_hash, ...safeUser } = updated;
   res.json(safeUser);
 });
 
 // ── Upload Photos ──
-app.post('/api/photos', authMiddleware, upload.array('photos', 9), (req, res) => {
-  const base = `${req.protocol}://${req.get('host')}`;
-  const urls = req.files.map(f => `${base}/uploads/${f.filename}`);
-  const user = db.prepare('SELECT photos FROM users WHERE id = ?').get(req.userId);
+app.post('/api/photos', authMiddleware, upload.array('photos', 9), async (req, res) => {
+  const urls = USE_PG
+    ? req.files.map(f => `data:${f.mimetype};base64,${f.buffer.toString('base64')}`)
+    : req.files.map(f => `${req.protocol}://${req.get('host')}/uploads/${f.filename}`);
+  const user = await dbGet('SELECT photos FROM users WHERE id = ?', req.userId);
   const existing = JSON.parse(user.photos || '[]');
   // Append to the album (first photo = main), up to 9 total.
   const updated = [...existing, ...urls].slice(0, 9);
-  db.prepare('UPDATE users SET photos = ? WHERE id = ?').run(JSON.stringify(updated), req.userId);
+  await dbRun('UPDATE users SET photos = ? WHERE id = ?', JSON.stringify(updated), req.userId);
   res.json({ photos: updated });
 });
 
 function unlinkUploaded(url) {
+  if (USE_PG) return;
   const m = url && url.match(/\/uploads\/([^/?]+)$/);
   if (m) {
     try { fs.unlinkSync(path.join(uploadsDir, m[1])); } catch {}
   }
 }
 
-app.delete('/api/photos/:index', authMiddleware, (req, res) => {
+app.delete('/api/photos/:index', authMiddleware, async (req, res) => {
   const idx = parseInt(req.params.index, 10);
-  const user = db.prepare('SELECT photos FROM users WHERE id = ?').get(req.userId);
+  const user = await dbGet('SELECT photos FROM users WHERE id = ?', req.userId);
   const existing = JSON.parse(user.photos || '[]');
   if (idx < 0 || idx >= existing.length) return res.status(400).json({ error: 'Invalid photo' });
   const [removed] = existing.splice(idx, 1);
   unlinkUploaded(removed);
-  db.prepare('UPDATE users SET photos = ? WHERE id = ?').run(JSON.stringify(existing), req.userId);
+  await dbRun('UPDATE users SET photos = ? WHERE id = ?', JSON.stringify(existing), req.userId);
   res.json({ photos: existing });
 });
 
-app.put('/api/photos/main/:index', authMiddleware, (req, res) => {
+app.put('/api/photos/main/:index', authMiddleware, async (req, res) => {
   const idx = parseInt(req.params.index, 10);
-  const user = db.prepare('SELECT photos FROM users WHERE id = ?').get(req.userId);
+  const user = await dbGet('SELECT photos FROM users WHERE id = ?', req.userId);
   const existing = JSON.parse(user.photos || '[]');
   if (idx < 0 || idx >= existing.length) return res.status(400).json({ error: 'Invalid photo' });
   const [picked] = existing.splice(idx, 1);
   existing.unshift(picked);
-  db.prepare('UPDATE users SET photos = ? WHERE id = ?').run(JSON.stringify(existing), req.userId);
+  await dbRun('UPDATE users SET photos = ? WHERE id = ?', JSON.stringify(existing), req.userId);
   res.json({ photos: existing });
 });
 
 // ── Browse / Discover ──
-app.get('/api/profiles', authMiddleware, (req, res) => {
+app.get('/api/profiles', authMiddleware, async (req, res) => {
   const { lat, lng, online, search, page = 1, limit = 50 } = req.query;
   const offset = (page - 1) * limit;
 
   // Get blocked IDs
-  const blocked = db.prepare('SELECT target_id FROM blocks WHERE user_id = ?').all(req.userId).map(r => r.target_id);
-  const blockedBy = db.prepare('SELECT user_id FROM blocks WHERE target_id = ?').all(req.userId).map(r => r.user_id);
+  const blocked = (await dbAll('SELECT target_id FROM blocks WHERE user_id = ?', req.userId)).map(r => r.target_id);
+  const blockedBy = (await dbAll('SELECT user_id FROM blocks WHERE target_id = ?', req.userId)).map(r => r.user_id);
   const allBlocked = [...new Set([...blocked, ...blockedBy, req.userId])];
 
   let where = `id NOT IN (${allBlocked.map(() => '?').join(',')}) AND name != ''`;
@@ -447,8 +613,8 @@ app.get('/api/profiles', authMiddleware, (req, res) => {
     params.push(s, s, s);
   }
 
-  const profiles = db.prepare(`SELECT * FROM users WHERE ${where} ORDER BY last_active DESC LIMIT ? OFFSET ?`)
-    .all(...params, Number(limit), Number(offset));
+  const profiles = await dbAll(`SELECT * FROM users WHERE ${where} ORDER BY last_active DESC LIMIT ? OFFSET ?`,
+    ...params, Number(limit), Number(offset));
 
   const reqLat = parseFloat(lat);
   const reqLng = parseFloat(lng);
@@ -471,21 +637,21 @@ app.get('/api/profiles', authMiddleware, (req, res) => {
 });
 
 // ── Nearby (location-based) ──
-app.get('/api/nearby', authMiddleware, (req, res) => {
+app.get('/api/nearby', authMiddleware, async (req, res) => {
   const { lat, lng, radius = 50 } = req.query;
   const userLat = parseFloat(lat) || 40.7306;
   const userLng = parseFloat(lng) || -73.9866;
 
-  const blocked = db.prepare('SELECT target_id FROM blocks WHERE user_id = ?').all(req.userId).map(r => r.target_id);
-  const blockedBy = db.prepare('SELECT user_id FROM blocks WHERE target_id = ?').all(req.userId).map(r => r.user_id);
+  const blocked = (await dbAll('SELECT target_id FROM blocks WHERE user_id = ?', req.userId)).map(r => r.target_id);
+  const blockedBy = (await dbAll('SELECT user_id FROM blocks WHERE target_id = ?', req.userId)).map(r => r.user_id);
   const allBlocked = [...new Set([...blocked, ...blockedBy, req.userId])];
 
   // Simple bounding box (approximate)
   const latDelta = radius / 111;
   const lngDelta = radius / (111 * Math.cos(userLat * Math.PI / 180));
 
-  const profiles = db.prepare(`
-    SELECT *, 
+  const profiles = await dbAll(`
+    SELECT *,
       ((lat - ?) * (lat - ?) + (lng - ?) * (lng - ?)) as dist_sq
     FROM users
     WHERE id NOT IN (${allBlocked.map(() => '?').join(',')})
@@ -494,7 +660,7 @@ app.get('/api/nearby', authMiddleware, (req, res) => {
       AND location_sharing = 1
     ORDER BY dist_sq ASC
     LIMIT 100
-  `).all(userLat, userLat, userLng, userLng, ...allBlocked,
+  `, userLat, userLat, userLng, userLng, ...allBlocked,
     userLat - latDelta, userLat + latDelta, userLng - lngDelta, userLng + lngDelta);
 
   const safe = profiles.map(({ password_hash, dist_sq, lat: _lat, lng: _lng, ...p }) => ({
@@ -510,49 +676,50 @@ app.get('/api/nearby', authMiddleware, (req, res) => {
 });
 
 // ── Favorites ──
-app.post('/api/favorites/:targetId', authMiddleware, (req, res) => {
+app.post('/api/favorites/:targetId', authMiddleware, async (req, res) => {
   const { targetId } = req.params;
   const now = Date.now();
 
-  const me = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+  const me = await dbGet('SELECT * FROM users WHERE id = ?', req.userId);
   if (!me) return res.status(404).json({ error: 'User not found' });
   if (!isPremium(me)) {
     const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
-    const todayCount = db.prepare('SELECT COUNT(*) as c FROM favorites WHERE user_id = ? AND created_at >= ?')
-      .get(req.userId, startOfDay.getTime()).c;
-    if (todayCount >= FREE_FAVORITES_PER_DAY) {
+    const todayCount = (await dbGet('SELECT COUNT(*) as c FROM favorites WHERE user_id = ? AND created_at >= ?',
+      req.userId, startOfDay.getTime())).c;
+    if (Number(todayCount) >= FREE_FAVORITES_PER_DAY) {
       return res.status(403).json({ error: 'Daily favorite limit reached. Upgrade to Chasr+ for unlimited likes.' });
     }
   }
 
   // Check if already favorited
-  const existing = db.prepare('SELECT * FROM favorites WHERE user_id = ? AND target_id = ?').get(req.userId, targetId);
+  const existing = await dbGet('SELECT * FROM favorites WHERE user_id = ? AND target_id = ?', req.userId, targetId);
   if (existing) return res.json({ status: 'already_favorited' });
 
-  db.prepare('INSERT INTO favorites (user_id, target_id, created_at) VALUES (?, ?, ?)').run(req.userId, targetId, now);
+  await dbRun('INSERT INTO favorites (user_id, target_id, created_at) VALUES (?, ?, ?)', req.userId, targetId, now);
 
   // Check for mutual favorite (match)
-  const mutual = db.prepare('SELECT * FROM favorites WHERE user_id = ? AND target_id = ?').get(targetId, req.userId);
+  const mutual = await dbGet('SELECT * FROM favorites WHERE user_id = ? AND target_id = ?', targetId, req.userId);
   const isMatch = !!mutual;
 
   // Create chat if match
   let chatId = null;
   if (isMatch) {
-    const existingChat = db.prepare(
-      'SELECT id FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)'
-    ).get(req.userId, targetId, targetId, req.userId);
+    const existingChat = await dbGet(
+      'SELECT id FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)',
+      req.userId, targetId, targetId, req.userId
+    );
 
     if (existingChat) {
       chatId = existingChat.id;
     } else {
       chatId = 'chat_' + uuidv4().slice(0, 12);
-      db.prepare('INSERT INTO chats (id, user1_id, user2_id, created_at) VALUES (?, ?, ?, ?)')
-        .run(chatId, req.userId, targetId, now);
+      await dbRun('INSERT INTO chats (id, user1_id, user2_id, created_at) VALUES (?, ?, ?, ?)',
+        chatId, req.userId, targetId, now);
     }
 
     // System message
-    db.prepare('INSERT INTO messages (id, chat_id, sender_id, text, created_at) VALUES (?, ?, ?, ?, ?)')
-      .run('msg_' + uuidv4().slice(0, 12), chatId, 'system', '🎉 It\'s a match! Say hello!', now);
+    await dbRun('INSERT INTO messages (id, chat_id, sender_id, text, created_at) VALUES (?, ?, ?, ?, ?)',
+      'msg_' + uuidv4().slice(0, 12), chatId, 'system', '🎉 It\'s a match! Say hello!', now);
 
     // Notify via socket
     io.to(`user_${targetId}`).emit('match', { from: req.userId, chatId });
@@ -561,149 +728,148 @@ app.post('/api/favorites/:targetId', authMiddleware, (req, res) => {
   res.json({ isMatch, chatId });
 });
 
-app.delete('/api/favorites/:targetId', authMiddleware, (req, res) => {
-  db.prepare('DELETE FROM favorites WHERE user_id = ? AND target_id = ?').run(req.userId, req.params.targetId);
+app.delete('/api/favorites/:targetId', authMiddleware, async (req, res) => {
+  await dbRun('DELETE FROM favorites WHERE user_id = ? AND target_id = ?', req.userId, req.params.targetId);
   res.json({ status: 'removed' });
 });
 
-app.get('/api/favorites', authMiddleware, (req, res) => {
-  const favs = db.prepare(`
+app.get('/api/favorites', authMiddleware, async (req, res) => {
+  const favs = await dbAll(`
     SELECT u.*, f.created_at as favorited_at FROM favorites f
     JOIN users u ON f.target_id = u.id
     WHERE f.user_id = ?
     ORDER BY f.created_at DESC
-  `).all(req.userId);
+  `, req.userId);
 
-  const me = db.prepare('SELECT id FROM users WHERE id = ?').get(req.userId);
-  const myFavIds = db.prepare('SELECT target_id FROM favorites WHERE user_id = ?').all(req.userId).map(r => r.target_id);
+  const myFavIds = (await dbAll('SELECT target_id FROM favorites WHERE user_id = ?', req.userId)).map(r => r.target_id);
 
-  const safe = favs.map(({ password_hash, lat: _lat, lng: _lng, ...u }) => ({
-    ...u,
-    photos: JSON.parse(u.photos || '[]'),
-    looking_for: JSON.parse(u.looking_for || '[]'),
-    interests: JSON.parse(u.interests || '[]'),
-    isMatch: myFavIds.includes(u.id) && db.prepare('SELECT 1 FROM favorites WHERE user_id = ? AND target_id = ?').get(u.id, req.userId),
-  }));
+  const safe = [];
+  for (const u of favs) {
+    const matched = await dbGet('SELECT 1 FROM favorites WHERE user_id = ? AND target_id = ?', u.id, req.userId);
+    safe.push({
+      ...u,
+      photos: JSON.parse(u.photos || '[]'),
+      looking_for: JSON.parse(u.looking_for || '[]'),
+      interests: JSON.parse(u.interests || '[]'),
+      isMatch: myFavIds.includes(u.id) && !!matched,
+    });
+  }
 
   res.json({ favorites: safe });
 });
 
 // ── Blocks ──
-app.post('/api/blocks/:targetId', authMiddleware, (req, res) => {
-  db.prepare('INSERT OR IGNORE INTO blocks (user_id, target_id, created_at) VALUES (?, ?, ?)')
-    .run(req.userId, req.params.targetId, Date.now());
+app.post('/api/blocks/:targetId', authMiddleware, async (req, res) => {
+  await dbRun('INSERT OR IGNORE INTO blocks (user_id, target_id, created_at) VALUES (?, ?, ?)',
+    req.userId, req.params.targetId, Date.now());
   res.json({ status: 'blocked' });
 });
 
 // ── Reports ──
-app.post('/api/reports', authMiddleware, (req, res) => {
+app.post('/api/reports', authMiddleware, async (req, res) => {
   const { targetId, reason, details } = req.body;
   if (!targetId || !reason) return res.status(400).json({ error: 'targetId and reason are required' });
   if (targetId === req.userId) return res.status(400).json({ error: 'You cannot report yourself' });
-  const target = db.prepare('SELECT id FROM users WHERE id = ?').get(targetId);
+  const target = await dbGet('SELECT id FROM users WHERE id = ?', targetId);
   if (!target) return res.status(404).json({ error: 'User not found' });
-  db.prepare('INSERT INTO reports (id, reporter_id, target_id, reason, details, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-    .run('rep_' + uuidv4().slice(0, 12), req.userId, targetId, String(reason).slice(0, 200), String(details || '').slice(0, 2000), Date.now());
+  await dbRun('INSERT INTO reports (id, reporter_id, target_id, reason, details, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    'rep_' + uuidv4().slice(0, 12), req.userId, targetId, String(reason).slice(0, 200), String(details || '').slice(0, 2000), Date.now());
   res.json({ ok: true });
 });
 
 // ── Chats ──
-app.post('/api/chats/start', authMiddleware, (req, res) => {
+app.post('/api/chats/start', authMiddleware, async (req, res) => {
   const { targetId } = req.body || {};
   if (!targetId || typeof targetId !== 'string') return res.status(400).json({ error: 'Target user required' });
   if (targetId === req.userId) return res.status(400).json({ error: 'You cannot chat with yourself' });
 
-  const target = db.prepare('SELECT id FROM users WHERE id = ?').get(targetId);
+  const target = await dbGet('SELECT id FROM users WHERE id = ?', targetId);
   if (!target) return res.status(404).json({ error: 'User not found' });
 
-  const isBlocked = db.prepare('SELECT 1 FROM blocks WHERE (user_id = ? AND target_id = ?) OR (user_id = ? AND target_id = ?)')
-    .get(req.userId, targetId, targetId, req.userId);
+  const isBlocked = await dbGet('SELECT 1 FROM blocks WHERE (user_id = ? AND target_id = ?) OR (user_id = ? AND target_id = ?)',
+    req.userId, targetId, targetId, req.userId);
   if (isBlocked) return res.status(403).json({ error: 'Conversation unavailable' });
 
   const now = Date.now();
-  let chat = db.prepare('SELECT * FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)')
-    .get(req.userId, targetId, targetId, req.userId);
+  let chat = await dbGet('SELECT * FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)',
+    req.userId, targetId, targetId, req.userId);
 
   if (!chat) {
     const chatId = 'chat_' + uuidv4().slice(0, 12);
-    db.prepare('INSERT INTO chats (id, user1_id, user2_id, created_at) VALUES (?, ?, ?, ?)')
-      .run(chatId, req.userId, targetId, now);
+    await dbRun('INSERT INTO chats (id, user1_id, user2_id, created_at) VALUES (?, ?, ?, ?)',
+      chatId, req.userId, targetId, now);
     chat = { id: chatId, user1_id: req.userId, user2_id: targetId, last_message: '', last_message_at: now, created_at: now };
   }
 
   res.json({ chat });
 });
 
-app.get('/api/chats', authMiddleware, (req, res) => {
-  const chats = db.prepare(`
-    SELECT c.*, 
+app.get('/api/chats', authMiddleware, async (req, res) => {
+  const chats = await dbAll(`
+    SELECT c.*,
       CASE WHEN c.user1_id = ? THEN c.user2_id ELSE c.user1_id END as other_id
     FROM chats c
     WHERE c.user1_id = ? OR c.user2_id = ?
     ORDER BY c.last_message_at DESC
-  `).all(req.userId, req.userId, req.userId);
+  `, req.userId, req.userId, req.userId);
 
-  const blockedChats = db.prepare('SELECT target_id FROM blocks WHERE user_id = ?').all(req.userId).map(r => r.target_id);
-  const blockedByChats = db.prepare('SELECT user_id FROM blocks WHERE target_id = ?').all(req.userId).map(r => r.user_id);
+  const blockedChats = (await dbAll('SELECT target_id FROM blocks WHERE user_id = ?', req.userId)).map(r => r.target_id);
+  const blockedByChats = (await dbAll('SELECT user_id FROM blocks WHERE target_id = ?', req.userId)).map(r => r.user_id);
   const chatBlockedSet = new Set([...blockedChats, ...blockedByChats]);
 
-  const result = chats
-    .filter(chat => !chatBlockedSet.has(chat.user1_id === req.userId ? chat.user2_id : chat.user1_id))
-    .map(chat => {
-    const other = db.prepare('SELECT id, name, age, photos, pronouns, identity, last_active FROM users WHERE id = ?')
-      .get(chat.other_id);
-    const unread = db.prepare('SELECT COUNT(*) as count FROM messages WHERE chat_id = ? AND sender_id != ? AND read = 0')
-      .get(chat.id, req.userId);
+  const result = [];
+  for (const chat of chats.filter(c => !chatBlockedSet.has(c.user1_id === req.userId ? c.user2_id : c.user1_id))) {
+    const other = await dbGet('SELECT id, name, age, photos, pronouns, identity, last_active FROM users WHERE id = ?', chat.other_id);
+    const unread = await dbGet('SELECT COUNT(*) as count FROM messages WHERE chat_id = ? AND sender_id != ? AND read = 0', chat.id, req.userId);
 
-    return {
+    result.push({
       ...chat,
       photos: other ? JSON.parse(other.photos || '[]') : [],
       other_user: other ? { ...other, photos: JSON.parse(other.photos || '[]') } : null,
       unread_count: unread.count,
-    };
     });
+  }
 
   res.json({ chats: result });
 });
 
 // ── Messages ──
-app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
-  const chat = db.prepare('SELECT * FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)')
-    .get(req.params.chatId, req.userId, req.userId);
+app.get('/api/chats/:chatId/messages', authMiddleware, async (req, res) => {
+  const chat = await dbGet('SELECT * FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)',
+    req.params.chatId, req.userId, req.userId);
   if (!chat) return res.status(404).json({ error: 'Chat not found' });
   const otherUserId = chat.user1_id === req.userId ? chat.user2_id : chat.user1_id;
-  const isBlocked = db.prepare('SELECT 1 FROM blocks WHERE (user_id = ? AND target_id = ?) OR (user_id = ? AND target_id = ?)')
-    .get(req.userId, otherUserId, otherUserId, req.userId);
+  const isBlocked = await dbGet('SELECT 1 FROM blocks WHERE (user_id = ? AND target_id = ?) OR (user_id = ? AND target_id = ?)',
+    req.userId, otherUserId, otherUserId, req.userId);
   if (isBlocked) return res.status(403).json({ error: 'Conversation unavailable' });
 
   // Mark as read
-  db.prepare('UPDATE messages SET read = 1 WHERE chat_id = ? AND sender_id != ?').run(req.params.chatId, req.userId);
+  await dbRun('UPDATE messages SET read = 1 WHERE chat_id = ? AND sender_id != ?', req.params.chatId, req.userId);
 
-  const messages = db.prepare('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC')
-    .all(req.params.chatId);
+  const messages = await dbAll('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC', req.params.chatId);
 
   res.json({ messages });
 });
 
-app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
+app.post('/api/chats/:chatId/messages', authMiddleware, async (req, res) => {
   const { text } = req.body;
   if (!text?.trim()) return res.status(400).json({ error: 'Message text required' });
 
-  const chat = db.prepare('SELECT * FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)')
-    .get(req.params.chatId, req.userId, req.userId);
+  const chat = await dbGet('SELECT * FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)',
+    req.params.chatId, req.userId, req.userId);
   if (!chat) return res.status(404).json({ error: 'Chat not found' });
   const otherUserId = chat.user1_id === req.userId ? chat.user2_id : chat.user1_id;
-  const isBlocked = db.prepare('SELECT 1 FROM blocks WHERE (user_id = ? AND target_id = ?) OR (user_id = ? AND target_id = ?)')
-    .get(req.userId, otherUserId, otherUserId, req.userId);
+  const isBlocked = await dbGet('SELECT 1 FROM blocks WHERE (user_id = ? AND target_id = ?) OR (user_id = ? AND target_id = ?)',
+    req.userId, otherUserId, otherUserId, req.userId);
   if (isBlocked) return res.status(403).json({ error: 'Unable to send message' });
 
   const msgId = 'msg_' + uuidv4().slice(0, 12);
   const now = Date.now();
-  db.prepare('INSERT INTO messages (id, chat_id, sender_id, text, created_at) VALUES (?, ?, ?, ?, ?)')
-    .run(msgId, req.params.chatId, req.userId, text.trim(), now);
+  await dbRun('INSERT INTO messages (id, chat_id, sender_id, text, created_at) VALUES (?, ?, ?, ?, ?)',
+    msgId, req.params.chatId, req.userId, text.trim(), now);
 
-  db.prepare('UPDATE chats SET last_message = ?, last_message_at = ? WHERE id = ?')
-    .run(text.trim().slice(0, 100), now, req.params.chatId);
+  await dbRun('UPDATE chats SET last_message = ?, last_message_at = ? WHERE id = ?',
+    text.trim().slice(0, 100), now, req.params.chatId);
 
   const msg = { id: msgId, chat_id: req.params.chatId, sender_id: req.userId, text: text.trim(), read: 0, created_at: now };
 
@@ -711,18 +877,17 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const otherId = chat.user1_id === req.userId ? chat.user2_id : chat.user1_id;
   io.to(`user_${otherId}`).emit('message', msg);
 
-
   res.json({ message: msg });
 });
 
 // ── Online Users ──
-app.get('/api/online', authMiddleware, (req, res) => {
+app.get('/api/online', authMiddleware, async (req, res) => {
   const fiveMinAgo = Date.now() - 5 * 60 * 1000;
-  const blocked = db.prepare('SELECT target_id FROM blocks WHERE user_id = ?').all(req.userId).map(r => r.target_id);
+  const blocked = (await dbAll('SELECT target_id FROM blocks WHERE user_id = ?', req.userId)).map(r => r.target_id);
   const allBlocked = [...blocked, req.userId];
 
-  const online = db.prepare(`SELECT * FROM users WHERE last_active > ? AND name != '' AND id NOT IN (${allBlocked.map(() => '?').join(',')}) ORDER BY last_active DESC`)
-    .all(fiveMinAgo, ...allBlocked);
+  const online = await dbAll(`SELECT * FROM users WHERE last_active > ? AND name != '' AND id NOT IN (${allBlocked.map(() => '?').join(',')}) ORDER BY last_active DESC`,
+    fiveMinAgo, ...allBlocked);
 
   const safe = online.map(({ password_hash, lat: _lat, lng: _lng, ...u }) => ({
     ...u,
@@ -743,18 +908,22 @@ io.on('connection', (socket) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     const userId = decoded.userId;
     socket.join(`user_${userId}`);
-    db.prepare('UPDATE users SET last_active = ? WHERE id = ?').run(Date.now(), userId);
+    dbRun('UPDATE users SET last_active = ? WHERE id = ?', Date.now(), userId).catch(() => {});
 
     socket.on('typing', ({ chatId }) => {
-      const chat = db.prepare('SELECT * FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)').get(chatId, userId, userId);
-      if (chat) {
-        const otherId = chat.user1_id === userId ? chat.user2_id : chat.user1_id;
-        io.to(`user_${otherId}`).emit('typing', { chatId, userId });
-      }
+      (async () => {
+        try {
+          const chat = await dbGet('SELECT * FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)', chatId, userId, userId);
+          if (chat) {
+            const otherId = chat.user1_id === userId ? chat.user2_id : chat.user1_id;
+            io.to(`user_${otherId}`).emit('typing', { chatId, userId });
+          }
+        } catch {}
+      })();
     });
 
     socket.on('disconnect', () => {
-      db.prepare('UPDATE users SET last_active = ? WHERE id = ?').run(Date.now(), userId);
+      dbRun('UPDATE users SET last_active = ? WHERE id = ?', Date.now(), userId).catch(() => {});
     });
   } catch {
     socket.disconnect();
@@ -787,6 +956,13 @@ function formatDistance(km) {
 }
 
 // ── Start ──
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Chasr Dating server running on port ${PORT}`);
+(async () => {
+  await initSchema();
+  JWT_SECRET = await getJwtSecret();
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Chasr Dating server running on port ${PORT} (${USE_PG ? 'Postgres' : 'SQLite'})`);
+  });
+})().catch((err) => {
+  console.error('Startup failed:', err);
+  process.exit(1);
 });
