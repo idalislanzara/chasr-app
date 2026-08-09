@@ -98,8 +98,8 @@ export default function Register() {
       setError('Please fill in all fields');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      setError('Password must be at least 8 characters with an uppercase letter, lowercase letter, and a number');
       return;
     }
     const result = await register(email.trim(), password, inviteCode || undefined);

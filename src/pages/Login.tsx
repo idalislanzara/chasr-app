@@ -81,8 +81,8 @@ export default function Login() {
     }
 
     if (mode === 'register') {
-      if (password.length < 6) {
-        setError('Password must be at least 6 characters');
+      if (password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+        setError('Password must be at least 8 characters with an uppercase letter, lowercase letter, and a number');
         return;
       }
       const result = await register(email.trim(), password, inviteCode || undefined);
@@ -178,7 +178,7 @@ export default function Login() {
           {mode === 'register' && (
             <div className="password-requirements">
               <ShieldCheck size={12} />
-              <span>At least 6 characters</span>
+              <span>8+ characters · uppercase · lowercase · number</span>
             </div>
           )}
 

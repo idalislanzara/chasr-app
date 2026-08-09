@@ -215,7 +215,9 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, inviteCode } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters with an uppercase letter, lowercase letter, and a number' });
+    }
 
     const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
     if (existing) return res.status(400).json({ error: 'Account already exists' });
