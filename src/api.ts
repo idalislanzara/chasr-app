@@ -147,8 +147,17 @@ export const api = {
   },
 
   logout: async () => {
+    // Always hit the server directly (bypasses the offline-probe cache) so the
+    // httpOnly session cookie is actually cleared — logout must always stick.
     try {
-      if (await checkBackend()) await remoteRequest('/api/auth/logout', { method: 'POST' });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
     } catch {}
   },
 

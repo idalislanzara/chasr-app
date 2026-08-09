@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../authStore';
 import { checkPasswordStrength, type PasswordStrength } from '../crypto';
+import { safeGet, safeSet } from '../safeStorage';
 
 const AppleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -54,11 +55,11 @@ export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteCode = searchParams.get('invite') || '';
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => safeGet('chasr_last_email') || '');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
-  const [mode, setMode] = useState<'login' | 'register'>('register');
+  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [strength, setStrength] = useState<PasswordStrength | null>(null);
 
   const handlePasswordChange = (val: string) => {
@@ -88,6 +89,7 @@ export default function Login() {
       if (result.error) {
         setError(result.error);
       } else {
+        safeSet('chasr_last_email', email.trim());
         navigate('/register', { replace: true });
       }
     } else {
@@ -98,11 +100,13 @@ export default function Login() {
       const result = await login(email.trim(), password);
       if (result.error) {
         if (result.error === 'No account found with this email') {
+          safeSet('chasr_last_email', email.trim());
           setError('No account found for this email. If you signed up before today, that account was lost in an earlier bug — sign up once with this email and it will be saved permanently.');
         } else {
           setError(result.error);
         }
       } else {
+        safeSet('chasr_last_email', email.trim());
         navigate('/', { replace: true });
       }
     }
@@ -191,7 +195,7 @@ export default function Login() {
         </form>
 
         <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, marginTop: 14 }}>
-          Sign up once — Chasr keeps you logged in every time after.
+          Log in with the same email you used before — Chasr remembers you in this browser automatically.
         </p>
 
         <div className="auth-footer-text">
