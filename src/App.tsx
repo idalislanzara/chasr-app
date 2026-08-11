@@ -18,6 +18,7 @@ import Login from './pages/Login';
 import Welcome from './pages/Welcome';
 import Register from './pages/Register';
 import ErrorBoundary from './ErrorBoundary';
+import SoundListener from './components/SoundListener';
 import './index.css';
 import { safeGet, safeSet } from './safeStorage';
 
@@ -68,6 +69,7 @@ export default function App() {
                   path="/*"
                   element={
                     <AuthGuard>
+                      <SoundListener />
                       <div className="app-shell">
                         <main className="main-content">
                           <Routes>

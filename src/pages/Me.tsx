@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Camera, ShieldCheck, MapPin, Radio, RadioOff, LogOut, Trash2,
-  Edit3, ChevronRight, Loader2, X, Check, Crown, Gift
+  Edit3, ChevronRight, Loader2, X, Check, Crown, Gift, Volume2, VolumeX
 } from 'lucide-react';
 import { useApp } from '../store';
 import { useAuth } from '../authStore';
 import { api } from '../api';
+import { playMessageSound, playMatchSound, soundEnabled, setSoundEnabled } from '../audio';
 
 const IDENTITY_OPTIONS = ['Trans Woman', 'Trans Man', 'Non-Binary', 'Genderqueer', 'Genderfluid', 'Agender', 'Two-Spirit', 'Cross Dresser', 'Questioning', 'Other'];
 const SURGERY_OPTIONS = ['Pre-op', 'Post-op', 'Non-op', 'Prefer not to say'];
@@ -26,6 +27,7 @@ export default function Me() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [soundOn, setSoundOnState] = useState(soundEnabled());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit form state
@@ -354,6 +356,45 @@ export default function Me() {
           {state.locationSharing ? <Radio size={16} /> : <RadioOff size={16} />}
           {state.locationSharing ? 'Location ON' : 'Location OFF'}
         </button>
+      </div>
+
+      <div className="me-section">
+        <h3>Chasr Sounds</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
+          The signature Chasr ping plays when a new message or match arrives.
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => {
+              const next = !soundOn;
+              setSoundEnabled(next);
+              setSoundOnState(next);
+              if (next) playMessageSound();
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px',
+              borderRadius: 'var(--radius-sm)',
+              background: soundOn ? 'var(--accent-bg, rgba(224,64,251,0.12))' : 'var(--bg-card)',
+              border: `1px solid ${soundOn ? 'var(--accent)' : 'rgba(255,255,255,0.06)'}`,
+              color: soundOn ? 'var(--accent)' : 'var(--text-secondary)',
+              fontWeight: 500, fontSize: 14, cursor: 'pointer',
+            }}
+          >
+            {soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            {soundOn ? 'Sounds ON' : 'Sounds OFF'}
+          </button>
+          <button
+            onClick={() => playMatchSound()}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px',
+              borderRadius: 'var(--radius-sm)', background: 'var(--bg-card)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              color: 'var(--text-secondary)', fontWeight: 500, fontSize: 14, cursor: 'pointer',
+            }}
+          >
+            Test
+          </button>
+        </div>
       </div>
 
       <div className="me-section">

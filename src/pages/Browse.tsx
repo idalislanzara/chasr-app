@@ -6,6 +6,7 @@ import { useToast } from '../components/Toast';
 import { safeGet, safeSet } from '../safeStorage';
 import { demoProfiles } from '../demoProfiles';
 import type { UserProfile } from '../types';
+import { playMatchSound } from '../audio';
 
 const IDENTITY_OPTIONS = ['All', 'Trans Woman', 'Trans Man', 'Non-Binary', 'Genderqueer', 'Genderfluid', 'Cross Dresser'];
 
@@ -142,7 +143,7 @@ export default function Browse() {
       setFavoritedIds(prev => new Set([...prev, profileId]));
       if (result.isMatch) {
         const p = profiles.find(pr => pr.id === profileId);
-        if (p) setMatchPopup({ name: p.name, photo: p.photos?.[0] || '' });
+        if (p) { setMatchPopup({ name: p.name, photo: p.photos?.[0] || '' }); playMatchSound(); }
       }
     } catch (err) {
       console.error('Favorite failed:', err);

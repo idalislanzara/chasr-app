@@ -16,6 +16,7 @@ import useGeolocation, {
 } from '../hooks/useGeolocation';
 import type { UserProfile } from '../types';
 import MatchModal from './MatchModal';
+import { playMatchSound } from '../audio';
 
 const DEFAULT_CENTER: [number, number] = [40.7306, -73.9866];
 
@@ -282,7 +283,7 @@ export default function MapBrowse() {
         setFavoritedIds(prev => [...prev, profileId]);
         if (result.isMatch) {
           const p = profiles.find((pr: UserProfile) => pr.id === profileId);
-          if (p) setMatchModal({ name: p.name, photo: p.photos[0] });
+          if (p) { setMatchModal({ name: p.name, photo: p.photos[0] }); playMatchSound(); }
         }
       }).catch(() => {});
     },
