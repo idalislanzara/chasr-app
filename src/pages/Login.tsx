@@ -175,6 +175,20 @@ export default function Login() {
 
           {mode === 'register' && <PasswordStrengthBar strength={strength} />}
 
+          {mode === 'login' && (
+            <button
+              type="button"
+              onClick={() => navigate('/reset-password')}
+              style={{
+                background: 'none', border: 'none', color: 'var(--accent)',
+                fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                padding: 0, marginTop: -4, textAlign: 'right', width: '100%',
+              }}
+            >
+              Forgot password?
+            </button>
+          )}
+
           {mode === 'register' && (
             <div className="password-requirements">
               <ShieldCheck size={12} />

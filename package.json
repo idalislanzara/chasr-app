@@ -36,6 +36,7 @@
     "leaflet": "^1.9.4",
     "lucide-react": "^1.25.0",
     "multer": "^2.2.0",
+    "nodemailer": "^9.0.5",
     "pg": "^8.23.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

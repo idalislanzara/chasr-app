@@ -17,6 +17,7 @@ import Me from './pages/Me';
 import Login from './pages/Login';
 import Welcome from './pages/Welcome';
 import Register from './pages/Register';
+import ResetPassword from './pages/ResetPassword';
 import ErrorBoundary from './ErrorBoundary';
 import SoundListener from './components/SoundListener';
 import './index.css';
@@ -65,6 +66,7 @@ export default function App() {
                 <Route path="/welcome" element={<Welcome />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route
                   path="/*"
                   element={

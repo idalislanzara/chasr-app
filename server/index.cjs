@@ -8,6 +8,8 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 // ── Config ──
 const PORT = process.env.PORT || 3001;
@@ -188,6 +190,8 @@ async function initSchema() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by TEXT DEFAULT '';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS surgery_status TEXT DEFAULT '';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS sexuality TEXT DEFAULT '';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token TEXT DEFAULT '';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires INTEGER DEFAULT 0;
     `);
     // Sanitize out-of-range ages from earlier bugs
     const badAges = await dbRun('UPDATE users SET age = 18 WHERE age < 18 OR age > 99');
@@ -281,6 +285,8 @@ async function initSchema() {
     if (!cols.includes('invited_by')) sqlite.exec("ALTER TABLE users ADD COLUMN invited_by TEXT DEFAULT ''");
     if (!cols.includes('surgery_status')) sqlite.exec("ALTER TABLE users ADD COLUMN surgery_status TEXT DEFAULT ''");
     if (!cols.includes('sexuality')) sqlite.exec("ALTER TABLE users ADD COLUMN sexuality TEXT DEFAULT ''");
+    if (!cols.includes('password_reset_token')) sqlite.exec("ALTER TABLE users ADD COLUMN password_reset_token TEXT DEFAULT ''");
+    if (!cols.includes('password_reset_expires')) sqlite.exec("ALTER TABLE users ADD COLUMN password_reset_expires INTEGER DEFAULT 0");
 
     // Sanitize out-of-range ages from earlier bugs
     const badAges = sqlite.prepare('UPDATE users SET age = 18 WHERE age < 18 OR age > 99').run();
@@ -484,6 +490,63 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('chasr_token', { path: '/' });
+  res.json({ ok: true });
+});
+
+// ── Password Reset ──
+const smtpConfig = process.env.SMTP_HOST
+  ? {
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+    }
+  : null;
+
+async function sendResetEmail(to, url) {
+  if (!smtpConfig) return false;
+  const transporter = nodemailer.createTransport(smtpConfig);
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || 'Chasr <no-reply@chasr.app>',
+    to,
+    subject: 'Reset your Chasr password',
+    text: `Someone asked to reset your Chasr password. Open this link within 30 minutes:\n\n${url}\n\nIf this wasn't you, you can ignore this email.`,
+    html: `<p>Someone asked to reset your Chasr password. Tap the button below — it expires in 30 minutes.</p><p style="margin:24px 0"><a href="${url}" style="background:#e040fb;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:600">Reset password</a></p><p>If this wasn't you, just ignore this email.</p>`,
+  });
+  return true;
+}
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email || typeof email !== 'string') return res.status(400).json({ error: 'Email required' });
+  const user = await dbGet('SELECT id, email FROM users WHERE email = ?', email.toLowerCase().trim());
+  if (user) {
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = Date.now() + 30 * 60 * 1000;
+    await dbRun('UPDATE users SET password_reset_token = ?, password_reset_expires = ? WHERE id = ?', token, expires, user.id);
+    const base = `${req.protocol}://${req.get('host')}`;
+    const url = `${base}/reset-password?token=${token}`;
+    const sent = await sendResetEmail(user.email, url).catch(err => {
+      console.error('Reset email failed:', err.message);
+      return false;
+    });
+    if (!sent) console.log(`[password-reset] ${user.email} -> ${url}`);
+  }
+  // Always respond the same way so nobody can tell which emails have accounts.
+  res.json({ ok: true });
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { token, password } = req.body || {};
+  if (!token || typeof token !== 'string') return res.status(400).json({ error: 'Reset token required' });
+  if (!password || typeof password !== 'string') return res.status(400).json({ error: 'Password required' });
+  if (password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters with an uppercase letter, lowercase letter, and a number' });
+  }
+  const user = await dbGet('SELECT id FROM users WHERE password_reset_token = ? AND password_reset_expires > ?', token, Date.now());
+  if (!user) return res.status(400).json({ error: 'This reset link is invalid or has expired. Request a new one.' });
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+  await dbRun('UPDATE users SET password_hash = ?, password_reset_token = ?, password_reset_expires = 0 WHERE id = ?', passwordHash, '', user.id);
   res.json({ ok: true });
 });
 

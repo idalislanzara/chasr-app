@@ -58,6 +58,12 @@ async function remoteRequest(path: string, options: RequestInit = {}) {
 }
 
 export const api = {
+  forgotPassword: (email: string) =>
+    remoteRequest('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+
+  resetPassword: (token: string, password: string) =>
+    remoteRequest('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
+
   register: async (email: string, password: string, inviteCode?: string) => {
     if (await checkBackend()) return remoteRequest('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password, inviteCode }) });
     return storage.localRegister(email, password);
