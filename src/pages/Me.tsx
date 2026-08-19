@@ -7,7 +7,7 @@ import {
 import { useApp } from '../store';
 import { useAuth } from '../authStore';
 import { api } from '../api';
-import { playMessageSound, playMatchSound, soundEnabled, setSoundEnabled } from '../audio';
+import { playMessageSound, soundEnabled, setSoundEnabled } from '../audio';
 
 const IDENTITY_OPTIONS = ['Trans Woman', 'Trans Man', 'Non-Binary', 'Genderqueer', 'Genderfluid', 'Agender', 'Two-Spirit', 'Cross Dresser', 'Questioning', 'Other'];
 const SURGERY_OPTIONS = ['Pre-op', 'Post-op', 'Non-op', 'Prefer not to say'];
@@ -384,7 +384,7 @@ export default function Me() {
             {soundOn ? 'Sounds ON' : 'Sounds OFF'}
           </button>
           <button
-            onClick={() => playMatchSound()}
+            onClick={() => playMessageSound()}
             style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px',
               borderRadius: 'var(--radius-sm)', background: 'var(--bg-card)',
